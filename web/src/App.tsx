@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
@@ -34,105 +34,29 @@ const WIDGET_COMPONENTS = {
   'cal-view': CalendarWidget,
 }
 
-const PAGES: Page[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    slug: '/',
-    columns: [
-      {
-        id: 'overview-left',
-        size: 'small',
-        widgets: [
-          { id: 'calendar', type: 'cal-view', title: 'Calendar' },
-          { id: 'todos', type: 'todos', title: 'Tasks' },
-        ],
-      },
-      {
-        id: 'overview-main',
-        size: 'full',
-        widgets: [
-          { id: 'memos', type: 'memos', title: 'Memos' },
-          { id: 'bookmarks', type: 'bookmarks', title: 'Bookmarks' },
-        ],
-      },
-      {
-        id: 'overview-right',
-        size: 'small',
-        widgets: [
-          { id: 'clipboard', type: 'clipboard', title: 'Clipboard' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'notes',
-    label: 'Notes',
-    slug: '/notes',
-    columns: [
-      {
-        id: 'notes-sidebar',
-        size: 'small',
-        widgets: [
-          { id: 'notes-folders', type: 'notes-folders', title: 'Folders' },
-        ],
-      },
-      {
-        id: 'notes-main',
-        size: 'full',
-        widgets: [
-          { id: 'notes-editor', type: 'notes-editor', title: 'Editor' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    slug: '/tasks',
-    columns: [
-      {
-        id: 'tasks-sidebar',
-        size: 'small',
-        widgets: [
-          { id: 'task-lists', type: 'task-lists', title: 'Lists' },
-        ],
-      },
-      {
-        id: 'tasks-main',
-        size: 'full',
-        widgets: [
-          { id: 'task-board', type: 'task-board', title: 'Active' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'calendar',
-    label: 'Calendar',
-    slug: '/calendar',
-    columns: [
-      {
-        id: 'cal-main',
-        size: 'full',
-        widgets: [
-          { id: 'cal-view', type: 'cal-view', title: 'Schedule' },
-        ],
-      },
-    ],
-  },
-]
-
 export default function App() {
   const [authed, setAuthed] = useState(isAuthenticated)
+  const [pages, setPages] = useState<Page[] | null>(null)
+
+  useEffect(() => {
+    if (!authed) return
+    fetch('/api/config/pages')
+      .then(r => r.json())
+      .then(setPages)
+      .catch(() => setPages([]))
+  }, [authed])
 
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />
   }
 
+  if (pages === null) {
+    return null
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Shell pages={PAGES} widgetComponents={WIDGET_COMPONENTS} />
+      <Shell pages={pages} widgetComponents={WIDGET_COMPONENTS} />
     </QueryClientProvider>
   )
 }

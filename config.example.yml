@@ -1,0 +1,41 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+
+auth:
+  # Password for logging in. Change this before exposing to a network.
+  password: changeme
+  # Secret used to sign JWT tokens. Use a long random string.
+  # Generate one with: openssl rand -hex 32
+  secret: replace-with-a-long-random-string
+
+storage:
+  db_path: ./data/helm.db
+  attachments_path: ./data/attachments
+
+# Dashboard layout — columns contain widgets stacked top to bottom.
+# Column sizes: small (~25%), medium (~33%), large (~50%)
+# Widget types: memos, todos, notes, calendar, clipboard, bookmarks
+pages:
+  - name: Home
+    columns:
+      - size: small
+        widgets:
+          - type: memos
+            config:
+              limit: 15
+          - type: todos
+            config:
+              filter: today   # today | all | pinned
+      - size: large
+        widgets:
+          - type: calendar
+      - size: small
+        widgets:
+          - type: notes
+            config:
+              pinned_only: false
+          - type: bookmarks
+          - type: clipboard
+            config:
+              limit: 5

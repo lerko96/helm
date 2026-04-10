@@ -1,0 +1,26 @@
+# Build output
+helm
+web/dist
+web/node_modules
+
+# Runtime data (never commit)
+data/
+config.yml
+
+# Go
+*.test
+*.out
+vendor/
+
+# Node
+.npm
+.env
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Notes
+Todo.md

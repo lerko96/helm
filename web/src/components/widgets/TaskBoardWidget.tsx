@@ -118,6 +118,7 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
   const del = useDeleteTodo()
   const create = useCreateTodo(listId)
   const [descDraft, setDescDraft] = useState<string | null>(null)
+  const [dueDraft, setDueDraft] = useState<string | null>(null)
   const [subtaskDraft, setSubtaskDraft] = useState('')
 
   const merged = detail ?? todo
@@ -129,12 +130,14 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
     setDescDraft(null)
   }
 
-  function setPriority(p: Todo['priority']) {
-    update.mutate({ todo: merged, patch: { priority: p } })
+  function saveDue() {
+    if (dueDraft === null) return
+    update.mutate({ todo: merged, patch: { due_date: dueDraft || null } })
+    setDueDraft(null)
   }
 
-  function setDue(date: string) {
-    update.mutate({ todo: merged, patch: { due_date: date || null } })
+  function setPriority(p: Todo['priority']) {
+    update.mutate({ todo: merged, patch: { priority: p } })
   }
 
   function addSubtask() {
@@ -147,7 +150,7 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
   }
 
   const currentDesc = descDraft !== null ? descDraft : (merged.description ?? '')
-  const currentDue = merged.due_date ? merged.due_date.slice(0, 10) : ''
+  const currentDue = dueDraft !== null ? dueDraft : (merged.due_date ? merged.due_date.slice(0, 10) : '')
 
   return (
     <div
@@ -193,7 +196,8 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
         <input
           type="date"
           value={currentDue}
-          onChange={e => setDue(e.target.value)}
+          onChange={e => setDueDraft(e.target.value)}
+          onBlur={saveDue}
           style={{ fontSize: 'var(--text-xs)', padding: '2px 4px' }}
         />
       </div>

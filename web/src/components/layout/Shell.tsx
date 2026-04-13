@@ -20,10 +20,13 @@ export interface Widget {
   content?: React.ReactNode
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type WidgetComponentMap = Record<string, React.ComponentType<any>>
+
 interface ShellProps {
   pages: Page[]
   header?: React.ReactNode
-  widgetComponents?: Record<string, React.ComponentType<Record<string, unknown>>>
+  widgetComponents?: WidgetComponentMap
   onLogout?: () => void
 }
 
@@ -111,7 +114,7 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
   )
 }
 
-function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: Record<string, React.ComponentType<Record<string, unknown>>> }) {
+function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: WidgetComponentMap }) {
   const Component = widgetComponents[widget.type]
   return (
     <div style={{ borderBottom: '1px solid var(--color-border)' }}>

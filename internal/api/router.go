@@ -163,7 +163,7 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 			widgets := make([]apiWidget, len(c.Widgets))
 			for k, w := range c.Widgets {
 				widgets[k] = apiWidget{
-					ID:     pageID + "-" + w.Type + "-" + strconv.Itoa(k),
+					ID:     pageID + "-col-" + strconv.Itoa(j) + "-" + w.Type + "-" + strconv.Itoa(k),
 					Type:   w.Type,
 					Title:  cases.Title(language.Und).String(strings.ReplaceAll(w.Type, "-", " ")),
 					Config: w.Config,
@@ -183,8 +183,13 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 		}
 	}
 
+	data, err := json.Marshal(pages)
+	if err != nil {
+		panic("config: failed to marshal pages: " + err.Error())
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(pages)
+		w.Write(data)
 	}
 }

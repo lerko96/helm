@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -17,10 +18,36 @@ type Tag struct {
 
 func ListTags(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rows, err := db.QueryContext(r.Context(),
-			`SELECT id, user_id, name, color, created_at FROM tags WHERE user_id = ? ORDER BY name`,
-			defaultUserID,
+		q := r.URL.Query()
+		entityType := q.Get("entity_type")
+		entityIDStr := q.Get("entity_id")
+
+		var (
+			rows *sql.Rows
+			err  error
 		)
+
+		if entityType != "" && entityIDStr != "" {
+			entityID, convErr := strconv.ParseInt(entityIDStr, 10, 64)
+			if convErr != nil {
+				respondError(w, http.StatusBadRequest, "invalid entity_id")
+				return
+			}
+			rows, err = db.QueryContext(r.Context(), `
+				SELECT t.id, t.user_id, t.name, t.color, t.created_at
+				FROM tags t
+				JOIN entity_tags et ON et.tag_id = t.id
+				WHERE t.user_id = ? AND et.entity_type = ? AND et.entity_id = ?
+				ORDER BY t.name`,
+				defaultUserID, entityType, entityID,
+			)
+		} else {
+			rows, err = db.QueryContext(r.Context(),
+				`SELECT id, user_id, name, color, created_at FROM tags WHERE user_id = ? ORDER BY name`,
+				defaultUserID,
+			)
+		}
+
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "query failed")
 			return

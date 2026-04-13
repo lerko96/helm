@@ -20,18 +20,21 @@ export interface Widget {
   content?: React.ReactNode
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type WidgetComponentMap = Record<string, React.ComponentType<any>>
+
 interface ShellProps {
   pages: Page[]
   header?: React.ReactNode
-  widgetComponents?: Record<string, React.ComponentType>
+  widgetComponents?: WidgetComponentMap
   onLogout?: () => void
 }
 
-const COLUMN_WIDTHS: Record<string, string> = {
-  small: 'w-64 shrink-0',
-  medium: 'w-80 shrink-0',
-  large: 'w-96 shrink-0',
-  full: 'flex-1 min-w-0',
+const COLUMN_UNITS: Record<string, number> = {
+  small: 1,
+  medium: 2,
+  large: 3,
+  full: 1,
 }
 
 export default function Shell({ pages, header, widgetComponents = {}, onLogout }: ShellProps) {
@@ -92,12 +95,16 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
       </header>
 
       {/* Page content */}
-      <main className="flex-1 flex overflow-hidden">
-        {currentPage?.columns.map((col, i) => (
+      <main className="flex-1 flex overflow-x-auto overflow-y-hidden">
+        {currentPage?.columns.map((col, i) => {
+          const units = COLUMN_UNITS[col.size] ?? 1
+          return (
           <div
             key={col.id}
-            className={`flex flex-col gap-0 overflow-y-auto ${COLUMN_WIDTHS[col.size]}`}
+            className="flex flex-col gap-0 overflow-y-auto"
             style={{
+              flex: `${units} ${units} 0%`,
+              minWidth: 0,
               borderRight: i < (currentPage.columns.length - 1) ? '1px solid var(--color-border)' : 'none',
             }}
           >
@@ -105,13 +112,14 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
               <WidgetWrapper key={widget.id} widget={widget} widgetComponents={widgetComponents} />
             ))}
           </div>
-        ))}
+          )
+        })}
       </main>
     </div>
   )
 }
 
-function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: Record<string, React.ComponentType> }) {
+function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: WidgetComponentMap }) {
   const Component = widgetComponents[widget.type]
   return (
     <div style={{ borderBottom: '1px solid var(--color-border)' }}>

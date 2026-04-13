@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
-import { isAuthenticated } from './lib/auth'
+import { isAuthenticated, clearToken } from './lib/auth'
+import { apiFetch } from './lib/api'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
 import ClipboardWidget from './components/widgets/ClipboardWidget'
@@ -40,8 +41,7 @@ export default function App() {
 
   useEffect(() => {
     if (!authed) return
-    fetch('/api/config/pages')
-      .then(r => r.json())
+    apiFetch<Page[]>('/api/config/pages')
       .then(setPages)
       .catch(() => setPages([]))
   }, [authed])
@@ -51,12 +51,27 @@ export default function App() {
   }
 
   if (pages === null) {
-    return null
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--color-bg)', fontFamily: 'var(--font-mono)' }}
+      >
+        <span style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.2em', color: 'var(--color-text-dim)' }}>
+          LOADING...
+        </span>
+      </div>
+    )
+  }
+
+  function handleLogout() {
+    clearToken()
+    setAuthed(false)
+    setPages(null)
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Shell pages={pages} widgetComponents={WIDGET_COMPONENTS} />
+      <Shell pages={pages} widgetComponents={WIDGET_COMPONENTS} onLogout={handleLogout} />
     </QueryClientProvider>
   )
 }

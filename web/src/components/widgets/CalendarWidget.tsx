@@ -1,18 +1,22 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { CalendarEvent } from '../../lib/types'
 
 function useCalendarEvents() {
-  const from = new Date()
-  from.setHours(0, 0, 0, 0)
-  const to = new Date(from)
-  to.setDate(to.getDate() + 30)
+  const { from, to } = useMemo(() => {
+    const f = new Date()
+    f.setHours(0, 0, 0, 0)
+    const t = new Date(f)
+    t.setDate(t.getDate() + 30)
+    return { from: f.toISOString(), to: t.toISOString() }
+  }, [])
 
   return useQuery({
-    queryKey: ['calendar-events', from.toISOString(), to.toISOString()],
+    queryKey: ['calendar-events', from, to],
     queryFn: () =>
       apiFetch<CalendarEvent[]>(
-        `/api/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
+        `/api/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       ),
   })
 }

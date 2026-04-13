@@ -14,7 +14,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (res.status === 401) {
     clearToken()
     window.location.reload()
-    return undefined as T
+    throw new Error('unauthenticated')
   }
 
   if (res.status === 204) {

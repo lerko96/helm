@@ -77,7 +77,18 @@ export default function BookmarksWidget() {
           className="flex items-center gap-3"
           style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}
         >
-          <span style={{ color: 'var(--color-text-label)', flexShrink: 0, fontSize: 'var(--text-sm)' }}>◈</span>
+          {bm.favicon_url ? (
+            <img
+              src={bm.favicon_url}
+              alt=""
+              width={14}
+              height={14}
+              style={{ flexShrink: 0, imageRendering: 'pixelated' }}
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <span style={{ color: 'var(--color-text-label)', flexShrink: 0, fontSize: 'var(--text-sm)' }}>◈</span>
+          )}
           <div className="flex flex-col" style={{ flex: 1, minWidth: 0 }}>
             <a
               href={bm.url}

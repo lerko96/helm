@@ -7,6 +7,21 @@ import (
 	"time"
 )
 
+// parseDueDate accepts "YYYY-MM-DD" or RFC3339; returns nil for empty string.
+func parseDueDate(s *string) (*time.Time, error) {
+	if s == nil || *s == "" {
+		return nil, nil
+	}
+	if t, err := time.Parse("2006-01-02", *s); err == nil {
+		return &t, nil
+	}
+	t, err := time.Parse(time.RFC3339, *s)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 type TodoList struct {
 	ID        int64     `json:"id"`
 	UserID    int64     `json:"user_id"`
@@ -210,14 +225,14 @@ func fetchSubtasks(db *sql.DB, parentID int64) []Todo {
 func CreateTodo(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ListID      *int64     `json:"list_id"`
-			ParentID    *int64     `json:"parent_id"`
-			Title       string     `json:"title"`
-			Description *string    `json:"description"`
-			Status      string     `json:"status"`
-			Priority    string     `json:"priority"`
-			DueDate     *time.Time `json:"due_date"`
-			IsPinned    bool       `json:"is_pinned"`
+			ListID      *int64  `json:"list_id"`
+			ParentID    *int64  `json:"parent_id"`
+			Title       string  `json:"title"`
+			Description *string `json:"description"`
+			Status      string  `json:"status"`
+			Priority    string  `json:"priority"`
+			DueDate     *string `json:"due_date"`
+			IsPinned    bool    `json:"is_pinned"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondError(w, http.StatusBadRequest, "invalid request body")
@@ -233,6 +248,11 @@ func CreateTodo(db *sql.DB) http.HandlerFunc {
 		if req.Priority == "" {
 			req.Priority = "medium"
 		}
+		dueDate, err := parseDueDate(req.DueDate)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid due_date format")
+			return
+		}
 
 		// Enforce one-level subtask depth.
 		if req.ParentID != nil {
@@ -247,7 +267,7 @@ func CreateTodo(db *sql.DB) http.HandlerFunc {
 		res, err := db.ExecContext(r.Context(), `
 			INSERT INTO todos (user_id, list_id, parent_id, title, description, status, priority, due_date, is_pinned)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			defaultUserID, req.ListID, req.ParentID, req.Title, req.Description, req.Status, req.Priority, req.DueDate, req.IsPinned,
+			defaultUserID, req.ListID, req.ParentID, req.Title, req.Description, req.Status, req.Priority, dueDate, req.IsPinned,
 		)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "insert failed")
@@ -267,23 +287,28 @@ func UpdateTodo(db *sql.DB) http.HandlerFunc {
 		}
 
 		var req struct {
-			ListID      *int64     `json:"list_id"`
-			Title       string     `json:"title"`
-			Description *string    `json:"description"`
-			Status      string     `json:"status"`
-			Priority    string     `json:"priority"`
-			DueDate     *time.Time `json:"due_date"`
-			IsPinned    bool       `json:"is_pinned"`
+			ListID      *int64  `json:"list_id"`
+			Title       string  `json:"title"`
+			Description *string `json:"description"`
+			Status      string  `json:"status"`
+			Priority    string  `json:"priority"`
+			DueDate     *string `json:"due_date"`
+			IsPinned    bool    `json:"is_pinned"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		dueDate, err := parseDueDate(req.DueDate)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid due_date format")
 			return
 		}
 
 		_, err = db.ExecContext(r.Context(), `
 			UPDATE todos SET list_id=?, title=?, description=?, status=?, priority=?, due_date=?, is_pinned=?, updated_at=CURRENT_TIMESTAMP
 			WHERE id=? AND user_id=?`,
-			req.ListID, req.Title, req.Description, req.Status, req.Priority, req.DueDate, req.IsPinned, id, defaultUserID,
+			req.ListID, req.Title, req.Description, req.Status, req.Priority, dueDate, req.IsPinned, id, defaultUserID,
 		)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "update failed")

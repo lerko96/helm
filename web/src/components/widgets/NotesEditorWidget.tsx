@@ -22,7 +22,7 @@ function useUpdateNote() {
         method: 'PUT',
         body: JSON.stringify({ content }),
       }),
-    onSuccess: (_, { id }) => {
+    onSuccess: (_, { id: _id }) => {
       qc.invalidateQueries({ queryKey: ['notes'] })
     },
   })
@@ -46,7 +46,7 @@ function NoteEditor({ note }: { note: Note }) {
 
   useEffect(() => {
     setContent(note.content ?? '')
-  }, [note.id])
+  }, [note.id, note.content])
 
   function handleBlur() {
     if (content !== (note.content ?? '')) {

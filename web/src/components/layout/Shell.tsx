@@ -24,15 +24,17 @@ interface ShellProps {
   pages: Page[]
   header?: React.ReactNode
   widgetComponents?: Record<string, React.ComponentType>
+  onLogout?: () => void
 }
 
-const COLUMN_WIDTHS = {
+const COLUMN_WIDTHS: Record<string, string> = {
   small: 'w-64 shrink-0',
+  medium: 'w-80 shrink-0',
   large: 'w-96 shrink-0',
   full: 'flex-1 min-w-0',
 }
 
-export default function Shell({ pages, header, widgetComponents = {} }: ShellProps) {
+export default function Shell({ pages, header, widgetComponents = {}, onLogout }: ShellProps) {
   const [activePage, setActivePage] = useState(pages[0]?.id ?? '')
 
   const currentPage = pages.find(p => p.id === activePage) ?? pages[0]
@@ -55,33 +57,9 @@ export default function Shell({ pages, header, widgetComponents = {} }: ShellPro
             {pages.map(page => (
               <button
                 key={page.id}
+                className="nav-tab"
+                data-active={page.id === activePage}
                 onClick={() => setActivePage(page.id)}
-                style={{
-                  padding: '0 16px',
-                  fontSize: 'var(--text-xs)',
-                  letterSpacing: 'var(--letter-spacing-label)',
-                  textTransform: 'uppercase',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: page.id === activePage
-                    ? '1px solid var(--color-text-primary)'
-                    : '1px solid transparent',
-                  color: page.id === activePage
-                    ? 'var(--color-text-primary)'
-                    : 'var(--color-text-label)',
-                  cursor: 'pointer',
-                  transition: 'color 0.15s, border-color 0.15s',
-                }}
-                onMouseEnter={e => {
-                  if (page.id !== activePage) {
-                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (page.id !== activePage) {
-                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-label)'
-                  }
-                }}
               >
                 {page.label}
               </button>
@@ -92,6 +70,23 @@ export default function Shell({ pages, header, widgetComponents = {} }: ShellPro
           <div className="flex items-center gap-3">
             {header}
             <Clock />
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-dim)',
+                  fontSize: 'var(--text-xs)',
+                  letterSpacing: 'var(--letter-spacing-label)',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                }}
+              >
+                logout
+              </button>
+            )}
           </div>
         </div>
       </header>

@@ -17,8 +17,13 @@ function useToggleTodo() {
       apiFetch<Todo>(`/api/todos/${todo.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          ...todo,
+          list_id: todo.list_id,
+          title: todo.title,
+          description: todo.description,
           status: todo.status === 'done' ? 'not_started' : 'done',
+          priority: todo.priority,
+          due_date: todo.due_date,
+          is_pinned: todo.is_pinned,
         }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }),

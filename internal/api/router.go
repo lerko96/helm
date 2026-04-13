@@ -14,6 +14,8 @@ import (
 	"github.com/lerko/helm/internal/api/handlers"
 	"github.com/lerko/helm/internal/api/middleware"
 	"github.com/lerko/helm/internal/config"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
@@ -25,7 +27,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
 	r.Use(chimiddleware.Recoverer)
 
 	// Public: auth + shared memo links + layout config
-	r.Post("/api/auth/login", handlers.Login(cfg))
+	r.With(middleware.LoginRateLimit).Post("/api/auth/login", handlers.Login(cfg))
 	r.Get("/s/{token}", handlers.GetSharedMemo(db))
 	r.Get("/api/config/pages", configPagesHandler(cfg))
 
@@ -71,7 +73,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
 
 		// Calendar
 		r.Get("/api/calendar/sources", handlers.ListCalendarSources(db))
-		r.Post("/api/calendar/sources", handlers.CreateCalendarSource(db))
+		r.Post("/api/calendar/sources", handlers.CreateCalendarSource(db, cfg.Auth.Secret))
 		r.Delete("/api/calendar/sources/{id}", handlers.DeleteCalendarSource(db))
 		r.Post("/api/calendar/sources/{id}/sync", handlers.SyncCalendarSource(db))
 
@@ -163,7 +165,7 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 				widgets[k] = apiWidget{
 					ID:     pageID + "-" + w.Type + "-" + strconv.Itoa(k),
 					Type:   w.Type,
-					Title:  strings.Title(strings.ReplaceAll(w.Type, "-", " ")),
+					Title:  cases.Title(language.Und).String(strings.ReplaceAll(w.Type, "-", " ")),
 					Config: w.Config,
 				}
 			}

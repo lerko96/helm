@@ -22,6 +22,14 @@ function useCreateMemo() {
   })
 }
 
+function useDeleteMemo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiFetch<void>(`/api/memos/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['memos'] }),
+  })
+}
+
 function formatTs(ts: string) {
   const d = new Date(ts)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
@@ -31,6 +39,7 @@ function formatTs(ts: string) {
 export default function MemosWidget() {
   const { data, isLoading, error } = useMemos()
   const create = useCreateMemo()
+  const del = useDeleteMemo()
   const [draft, setDraft] = useState('')
 
   function handleSubmit() {
@@ -73,25 +82,46 @@ export default function MemosWidget() {
               style={{
                 padding: '10px 12px',
                 borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'flex-start',
               }}
             >
-              <div
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--color-text-primary)',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    lineHeight: '1.5',
+                    marginBottom: '4px',
+                  }}
+                >
+                  {memo.content}
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-label)', letterSpacing: 'var(--letter-spacing-label)' }}>
+                  {formatTs(memo.created_at)}
+                </div>
+              </div>
+              <button
+                onClick={() => del.mutate(memo.id)}
+                disabled={del.isPending}
                 style={{
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--color-text-primary)',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  lineHeight: '1.5',
-                  marginBottom: '4px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-dim)',
+                  fontSize: '10px',
+                  padding: '2px 4px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  lineHeight: 1,
                 }}
               >
-                {memo.content}
-              </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-label)', letterSpacing: 'var(--letter-spacing-label)' }}>
-                {formatTs(memo.created_at)}
-              </div>
+                ×
+              </button>
             </div>
           ))
         )}

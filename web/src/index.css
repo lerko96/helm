@@ -153,6 +153,28 @@ body {
     );
   }
 
+  .nav-tab {
+    padding: 0 16px;
+    font-size: var(--text-xs);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--color-text-label);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .nav-tab:hover {
+    color: var(--color-text-primary);
+  }
+
+  .nav-tab[data-active="true"] {
+    color: var(--color-text-primary);
+    border-bottom-color: var(--color-text-primary);
+  }
+
   .data-field {
     display: flex;
     flex-direction: column;

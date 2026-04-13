@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: '../ui/dist',
     emptyOutDir: true,
   },
 })

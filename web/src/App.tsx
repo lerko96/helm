@@ -1,23 +1,77 @@
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Shell, { type Page } from './components/layout/Shell'
+import LoginPage from './components/LoginPage'
+import { isAuthenticated, clearToken } from './lib/auth'
+import { apiFetch } from './lib/api'
+import MemosWidget from './components/widgets/MemosWidget'
+import TodosWidget from './components/widgets/TodosWidget'
+import ClipboardWidget from './components/widgets/ClipboardWidget'
+import BookmarksWidget from './components/widgets/BookmarksWidget'
+import NotesFoldersWidget from './components/widgets/NotesFoldersWidget'
+import NotesEditorWidget from './components/widgets/NotesEditorWidget'
+import TaskListsWidget from './components/widgets/TaskListsWidget'
+import TaskBoardWidget from './components/widgets/TaskBoardWidget'
+import CalendarWidget from './components/widgets/CalendarWidget'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
+      staleTime: 1000 * 60,
       retry: 1,
     },
   },
 })
 
+const WIDGET_COMPONENTS = {
+  memos: MemosWidget,
+  todos: TodosWidget,
+  clipboard: ClipboardWidget,
+  bookmarks: BookmarksWidget,
+  'notes-folders': NotesFoldersWidget,
+  'notes-editor': NotesEditorWidget,
+  'task-lists': TaskListsWidget,
+  'task-board': TaskBoardWidget,
+  'cal-view': CalendarWidget,
+}
+
 export default function App() {
+  const [authed, setAuthed] = useState(isAuthenticated)
+  const [pages, setPages] = useState<Page[] | null>(null)
+
+  useEffect(() => {
+    if (!authed) return
+    apiFetch<Page[]>('/api/config/pages')
+      .then(setPages)
+      .catch(() => setPages([]))
+  }, [authed])
+
+  if (!authed) {
+    return <LoginPage onSuccess={() => setAuthed(true)} />
+  }
+
+  if (pages === null) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--color-bg)', fontFamily: 'var(--font-mono)' }}
+      >
+        <span style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.2em', color: 'var(--color-text-dim)' }}>
+          LOADING...
+        </span>
+      </div>
+    )
+  }
+
+  function handleLogout() {
+    clearToken()
+    setAuthed(false)
+    setPages(null)
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-[#0f1117] text-slate-200 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-semibold tracking-tight text-white mb-2">Helm</h1>
-          <p className="text-slate-400">Your productivity dashboard.</p>
-        </div>
-      </div>
+      <Shell pages={pages} widgetComponents={WIDGET_COMPONENTS} onLogout={handleLogout} />
     </QueryClientProvider>
   )
 }

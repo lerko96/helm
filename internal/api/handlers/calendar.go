@@ -65,7 +65,7 @@ func ListCalendarSources(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func CreateCalendarSource(db *sql.DB) http.HandlerFunc {
+func CreateCalendarSource(db *sql.DB, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Name     string  `json:"name"`
@@ -91,12 +91,20 @@ func CreateCalendarSource(db *sql.DB) http.HandlerFunc {
 			req.Color = "#3b82f6"
 		}
 
-		// TODO: encrypt password before storage (AES-GCM using auth.secret as key).
-		// For now storing as-is; encryption will be added before first release.
+		var passwordEnc *string
+		if req.Password != nil && *req.Password != "" {
+			enc, err := encryptString(*req.Password, secret)
+			if err != nil {
+				respondError(w, http.StatusInternalServerError, "failed to encrypt password")
+				return
+			}
+			passwordEnc = &enc
+		}
+
 		res, err := db.ExecContext(r.Context(), `
 			INSERT INTO calendar_sources (user_id, name, url, username, password_enc, color, is_local)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			defaultUserID, req.Name, req.URL, req.Username, req.Password, req.Color, req.IsLocal,
+			defaultUserID, req.Name, req.URL, req.Username, passwordEnc, req.Color, req.IsLocal,
 		)
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "insert failed")

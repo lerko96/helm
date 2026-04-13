@@ -33,6 +33,7 @@ export interface Todo {
   is_pinned: boolean
   due_date: string | null
   tags?: Tag[]
+  subtasks?: Todo[]
   created_at: string
   updated_at: string
 }

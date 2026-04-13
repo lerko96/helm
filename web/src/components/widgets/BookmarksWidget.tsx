@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Bookmark, BookmarkCollection } from '../../lib/types'
+import TagPicker from '../shared/TagPicker'
 
 function useBookmarks(collectionId: number | null) {
   return useQuery({
@@ -360,6 +361,9 @@ export default function BookmarksWidget() {
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-label)', letterSpacing: 'var(--letter-spacing-label)' }}>
                 {getDomain(bm.url)}
               </span>
+              <div style={{ marginTop: '3px' }}>
+                <TagPicker entityType="bookmark" entityId={bm.id} />
+              </div>
             </div>
             <button
               onClick={() => togglePin(bm)}

@@ -1,9 +1,17 @@
+export interface Tag {
+  id: number
+  name: string
+  color: string
+  created_at: string
+}
+
 export interface Memo {
   id: number
   content: string
   visibility: 'private' | 'public'
   share_token: string | null
   is_pinned: boolean
+  tags?: Tag[]
   created_at: string
   updated_at: string
 }
@@ -24,6 +32,7 @@ export interface Todo {
   priority: 'low' | 'medium' | 'high'
   is_pinned: boolean
   due_date: string | null
+  tags?: Tag[]
   created_at: string
   updated_at: string
 }
@@ -40,6 +49,7 @@ export interface Note {
   content: string | null
   is_pinned: boolean
   due_date: string | null
+  tags?: Tag[]
   created_at: string
   updated_at: string
 }
@@ -50,6 +60,7 @@ export interface ClipboardItem {
   content: string
   language: string | null
   is_pinned: boolean
+  tags?: Tag[]
   created_at: string
   updated_at: string
 }
@@ -68,6 +79,7 @@ export interface Bookmark {
   favicon_url: string | null
   is_pinned: boolean
   is_public: boolean
+  tags?: Tag[]
   created_at: string
 }
 

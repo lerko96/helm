@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { ClipboardItem } from '../../lib/types'
+import TagPicker from '../shared/TagPicker'
 
 function useClipboard() {
   return useQuery({
@@ -113,53 +114,57 @@ export default function ClipboardWidget() {
       {items.map(item => (
         <div
           key={item.id}
-          className="flex items-center gap-2"
-          style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}
+          style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border)' }}
         >
-          {editTitleId === item.id ? (
-            <input
-              type="text"
-              value={editTitleDraft}
-              onChange={e => setEditTitleDraft(e.target.value)}
-              autoFocus
-              style={{ flex: 1, fontSize: 'var(--text-sm)' }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitEditTitle(item.id)
-                if (e.key === 'Escape') setEditTitleId(null)
-              }}
-              onBlur={() => commitEditTitle(item.id)}
-            />
-          ) : (
-            <div
-              style={{ flex: 1, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)', cursor: 'pointer' }}
-              onClick={() => handleCopy(item)}
+          <div className="flex items-center gap-2">
+            {editTitleId === item.id ? (
+              <input
+                type="text"
+                value={editTitleDraft}
+                onChange={e => setEditTitleDraft(e.target.value)}
+                autoFocus
+                style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitEditTitle(item.id)
+                  if (e.key === 'Escape') setEditTitleId(null)
+                }}
+                onBlur={() => commitEditTitle(item.id)}
+              />
+            ) : (
+              <div
+                style={{ flex: 1, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)', cursor: 'pointer' }}
+                onClick={() => handleCopy(item)}
+              >
+                {item.title ?? item.content}
+              </div>
+            )}
+            {item.language && editTitleId !== item.id && (
+              <span className="status status-neutral" style={{ fontSize: '9px', flexShrink: 0 }}>{item.language}</span>
+            )}
+            {copiedId === item.id && (
+              <span className="status status-active" style={{ flexShrink: 0, fontSize: '9px' }}>COPIED</span>
+            )}
+            <button
+              onClick={e => { e.stopPropagation(); startEditTitle(item) }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '11px', padding: '0 2px', cursor: 'pointer', flexShrink: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
             >
-              {item.title ?? item.content}
-            </div>
-          )}
-          {item.language && editTitleId !== item.id && (
-            <span className="status status-neutral" style={{ fontSize: '9px', flexShrink: 0 }}>{item.language}</span>
-          )}
-          {copiedId === item.id && (
-            <span className="status status-active" style={{ flexShrink: 0, fontSize: '9px' }}>COPIED</span>
-          )}
-          <button
-            onClick={e => { e.stopPropagation(); startEditTitle(item) }}
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '11px', padding: '0 2px', cursor: 'pointer', flexShrink: 0 }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-          >
-            ✎
-          </button>
-          <button
-            onClick={() => del.mutate(item.id)}
-            disabled={del.isPending}
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer', flexShrink: 0 }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-          >
-            ×
-          </button>
+              ✎
+            </button>
+            <button
+              onClick={() => del.mutate(item.id)}
+              disabled={del.isPending}
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer', flexShrink: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ marginTop: '4px' }}>
+            <TagPicker entityType="clipboard" entityId={item.id} />
+          </div>
         </div>
       ))}
 

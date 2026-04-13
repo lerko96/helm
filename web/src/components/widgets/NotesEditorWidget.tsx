@@ -22,7 +22,7 @@ function useUpdateNote() {
         method: 'PUT',
         body: JSON.stringify({ content }),
       }),
-    onSuccess: (_, { id: _id }) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notes'] })
     },
   })

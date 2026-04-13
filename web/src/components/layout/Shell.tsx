@@ -23,7 +23,7 @@ export interface Widget {
 interface ShellProps {
   pages: Page[]
   header?: React.ReactNode
-  widgetComponents?: Record<string, React.ComponentType>
+  widgetComponents?: Record<string, React.ComponentType<Record<string, unknown>>>
   onLogout?: () => void
 }
 
@@ -111,7 +111,7 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
   )
 }
 
-function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: Record<string, React.ComponentType> }) {
+function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetComponents: Record<string, React.ComponentType<Record<string, unknown>>> }) {
   const Component = widgetComponents[widget.type]
   return (
     <div style={{ borderBottom: '1px solid var(--color-border)' }}>

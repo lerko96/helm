@@ -13,6 +13,7 @@ import NotesEditorWidget from './components/widgets/NotesEditorWidget'
 import TaskListsWidget from './components/widgets/TaskListsWidget'
 import TaskBoardWidget from './components/widgets/TaskBoardWidget'
 import CalendarWidget from './components/widgets/CalendarWidget'
+import TagsWidget from './components/widgets/TagsWidget'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ const WIDGET_COMPONENTS = {
   'task-lists': TaskListsWidget,
   'task-board': TaskBoardWidget,
   'cal-view': CalendarWidget,
+  tags: TagsWidget,
 }
 
 export default function App() {

@@ -3,6 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Todo } from '../../lib/types'
 
+const PRIORITY_COLOR: Record<Todo['priority'], string> = {
+  low: 'var(--color-text-dim)',
+  medium: 'var(--color-text-label)',
+  high: 'var(--color-accent-red)',
+}
+
 function useTodos() {
   return useQuery({
     queryKey: ['todos'],
@@ -33,10 +39,10 @@ function useToggleTodo() {
 function useCreateTodo() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (title: string) =>
+    mutationFn: ({ title, due_date }: { title: string; due_date?: string }) =>
       apiFetch<Todo>('/api/todos', {
         method: 'POST',
-        body: JSON.stringify({ title, status: 'not_started', priority: 'medium' }),
+        body: JSON.stringify({ title, status: 'not_started', priority: 'medium', due_date: due_date || undefined }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }),
   })
@@ -51,6 +57,8 @@ export default function TodosWidget() {
   const toggle = useToggleTodo()
   const create = useCreateTodo()
   const [draft, setDraft] = useState('')
+  const [dueDraft, setDueDraft] = useState('')
+  const [showDate, setShowDate] = useState(false)
 
   if (isLoading) {
     return (
@@ -75,7 +83,10 @@ export default function TodosWidget() {
   function handleAdd() {
     const title = draft.trim()
     if (!title) return
-    create.mutate(title, { onSuccess: () => setDraft('') })
+    create.mutate(
+      { title, due_date: dueDraft || undefined },
+      { onSuccess: () => { setDraft(''); setDueDraft(''); setShowDate(false) } }
+    )
   }
 
   return (
@@ -93,6 +104,9 @@ export default function TodosWidget() {
             className="flex items-center gap-2"
             style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}
           >
+            <span
+              style={{ width: '6px', height: '6px', background: PRIORITY_COLOR[todo.priority], display: 'inline-block', flexShrink: 0 }}
+            />
             <button
               onClick={() => toggle.mutate(todo)}
               style={{
@@ -130,23 +144,40 @@ export default function TodosWidget() {
         )
       })}
 
-      <div className="flex gap-2" style={{ padding: '8px 12px', borderTop: todos.length > 0 ? '1px solid var(--color-border)' : 'none', background: 'var(--color-surface)' }}>
-        <input
-          type="text"
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          placeholder="add task..."
-          style={{ flex: 1, fontSize: 'var(--text-sm)' }}
-          onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-        />
-        <button
-          className="btn-ghost"
-          onClick={handleAdd}
-          disabled={!draft.trim() || create.isPending}
-          style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
-        >
-          +
-        </button>
+      <div className="flex flex-col gap-2" style={{ padding: '8px 12px', borderTop: todos.length > 0 ? '1px solid var(--color-border)' : 'none', background: 'var(--color-surface)' }}>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            placeholder="add task..."
+            style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+          />
+          <button
+            className="btn-ghost"
+            onClick={() => setShowDate(v => !v)}
+            style={{ fontSize: 'var(--text-xs)', padding: '6px 8px', color: showDate ? 'var(--color-text-primary)' : 'var(--color-text-dim)' }}
+          >
+            ◷
+          </button>
+          <button
+            className="btn-ghost"
+            onClick={handleAdd}
+            disabled={!draft.trim() || create.isPending}
+            style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
+          >
+            +
+          </button>
+        </div>
+        {showDate && (
+          <input
+            type="date"
+            value={dueDraft}
+            onChange={e => setDueDraft(e.target.value)}
+            style={{ fontSize: 'var(--text-sm)', width: '100%' }}
+          />
+        )}
       </div>
     </div>
   )

@@ -23,9 +23,18 @@ function useCreateNoteFolder() {
   })
 }
 
+function useDeleteNoteFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiFetch<void>(`/api/note-folders/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['note-folders'] }),
+  })
+}
+
 export default function NotesFoldersWidget() {
   const { data, isLoading, error } = useNoteFolders()
   const create = useCreateNoteFolder()
+  const del = useDeleteNoteFolder()
   const { selectedFolderId, setFolder } = useNotesStore()
   const [draft, setDraft] = useState('')
 
@@ -81,7 +90,16 @@ export default function NotesFoldersWidget() {
             }}
           >
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)' }}>{active ? '▶' : '▷'}</span>
-            {folder.name}
+            <span style={{ flex: 1 }}>{folder.name}</span>
+            <button
+              onClick={e => { e.stopPropagation(); del.mutate(folder.id) }}
+              disabled={del.isPending}
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 2px', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
+            >
+              ×
+            </button>
           </div>
         )
       })}

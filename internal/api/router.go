@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -185,11 +186,11 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 
 	data, err := json.Marshal(pages)
 	if err != nil {
-		panic("config: failed to marshal pages: " + err.Error())
+		log.Fatalf("config: failed to marshal pages: %v", err)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }

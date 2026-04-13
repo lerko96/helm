@@ -28,6 +28,24 @@ function useUpdateNote() {
   })
 }
 
+function useToggleNotePin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (note: Note) =>
+      apiFetch<Note>(`/api/notes/${note.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: note.title,
+          content: note.content,
+          folder_id: note.folder_id,
+          is_pinned: !note.is_pinned,
+          due_date: note.due_date,
+        }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
 function useCreateNote(folderId: number | null) {
   const qc = useQueryClient()
   return useMutation({
@@ -78,6 +96,7 @@ export default function NotesEditorWidget() {
   const { selectedFolderId, selectedNoteId, setNote } = useNotesStore()
   const { data, isLoading, error } = useNotes(selectedFolderId)
   const createNote = useCreateNote(selectedFolderId)
+  const togglePin = useToggleNotePin()
   const [draft, setDraft] = useState('')
 
   if (isLoading) {
@@ -129,9 +148,30 @@ export default function NotesEditorWidget() {
               background: note.id === selectedNoteId ? 'var(--color-surface-raised)' : 'transparent',
               fontSize: 'var(--text-sm)',
               color: note.id === selectedNoteId ? 'var(--color-text-primary)' : 'var(--color-text-label)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            {note.title}
+            {note.is_pinned && (
+              <span style={{ fontSize: '10px', color: 'var(--color-text-primary)', flexShrink: 0 }}>◆</span>
+            )}
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.title}</span>
+            <button
+              onClick={e => { e.stopPropagation(); togglePin.mutate(note) }}
+              title="pin"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '10px',
+                cursor: 'pointer',
+                padding: '0 2px',
+                flexShrink: 0,
+                color: note.is_pinned ? 'var(--color-text-primary)' : 'var(--color-text-dim)',
+              }}
+            >
+              ◆
+            </button>
           </div>
         ))}
         <div className="flex gap-2" style={{ padding: '8px 12px', background: 'var(--color-surface)' }}>

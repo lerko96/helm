@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { TodoList, Todo } from '../../lib/types'
 import { useTasksStore } from '../../stores/tasksStore'
@@ -17,10 +18,34 @@ function useTodos() {
   })
 }
 
+function useCreateTodoList() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, color }: { name: string; color: string }) =>
+      apiFetch<TodoList>('/api/todo-lists', {
+        method: 'POST',
+        body: JSON.stringify({ name, color }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['todo-lists'] }),
+  })
+}
+
+function useDeleteTodoList() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiFetch<void>(`/api/todo-lists/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['todo-lists'] }),
+  })
+}
+
 export default function TaskListsWidget() {
   const { data: lists, isLoading, error } = useTodoLists()
   const { data: todos } = useTodos()
   const { selectedListId, setList } = useTasksStore()
+  const create = useCreateTodoList()
+  const del = useDeleteTodoList()
+  const [nameDraft, setNameDraft] = useState('')
+  const [colorDraft, setColorDraft] = useState('#666666')
 
   if (isLoading) {
     return (
@@ -45,6 +70,12 @@ export default function TaskListsWidget() {
 
   function countForList(listId: number) {
     return allTodos.filter(t => t.list_id === listId && t.status !== 'done').length
+  }
+
+  function handleAdd() {
+    const name = nameDraft.trim()
+    if (!name) return
+    create.mutate({ name, color: colorDraft }, { onSuccess: () => setNameDraft('') })
   }
 
   return (
@@ -96,21 +127,50 @@ export default function TaskListsWidget() {
             }}
           >
             <span
-              style={{
-                width: '8px',
-                height: '8px',
-                background: list.color ?? 'var(--color-text-label)',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
+              style={{ width: '8px', height: '8px', background: list.color ?? 'var(--color-text-label)', display: 'inline-block', flexShrink: 0 }}
             />
-            {list.name}
-            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)' }}>
+            <span style={{ flex: 1 }}>{list.name}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)' }}>
               {countForList(list.id)}
             </span>
+            <button
+              onClick={e => { e.stopPropagation(); del.mutate(list.id) }}
+              disabled={del.isPending}
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 2px', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
+            >
+              ×
+            </button>
           </div>
         )
       })}
+
+      {/* Create list form */}
+      <div className="flex gap-2" style={{ padding: '8px 12px', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+        <input
+          type="color"
+          value={colorDraft}
+          onChange={e => setColorDraft(e.target.value)}
+          style={{ width: '28px', height: '28px', padding: '2px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', flexShrink: 0 }}
+        />
+        <input
+          type="text"
+          value={nameDraft}
+          onChange={e => setNameDraft(e.target.value)}
+          placeholder="new list..."
+          style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+        />
+        <button
+          className="btn-ghost"
+          onClick={handleAdd}
+          disabled={!nameDraft.trim() || create.isPending}
+          style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
+        >
+          +
+        </button>
+      </div>
     </div>
   )
 }

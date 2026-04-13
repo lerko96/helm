@@ -2,16 +2,23 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
+	"io/fs"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/lerko/helm/internal/api/handlers"
 	"github.com/lerko/helm/internal/api/middleware"
 	"github.com/lerko/helm/internal/config"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
-func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
+func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.RequestID)
@@ -19,9 +26,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 
-	// Public: auth + shared memo links
-	r.Post("/api/auth/login", handlers.Login(cfg))
+	// Public: auth + shared memo links + layout config
+	r.With(middleware.LoginRateLimit).Post("/api/auth/login", handlers.Login(cfg))
 	r.Get("/s/{token}", handlers.GetSharedMemo(db))
+	r.Get("/api/config/pages", configPagesHandler(cfg))
 
 	// Protected API
 	r.Group(func(r chi.Router) {
@@ -65,7 +73,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 
 		// Calendar
 		r.Get("/api/calendar/sources", handlers.ListCalendarSources(db))
-		r.Post("/api/calendar/sources", handlers.CreateCalendarSource(db))
+		r.Post("/api/calendar/sources", handlers.CreateCalendarSource(db, cfg.Auth.Secret))
 		r.Delete("/api/calendar/sources/{id}", handlers.DeleteCalendarSource(db))
 		r.Post("/api/calendar/sources/{id}/sync", handlers.SyncCalendarSource(db))
 
@@ -98,5 +106,85 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 		r.Delete("/api/memos/{id}", handlers.DeleteMemo(db))
 	})
 
+	// SPA catch-all: serve static files, fall back to index.html
+	if uiFS != nil {
+		fileServer := http.FileServer(http.FS(uiFS))
+		r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+			// If the file exists, serve it directly; otherwise serve index.html.
+			if _, err := fs.Stat(uiFS, req.URL.Path[1:]); err == nil {
+				fileServer.ServeHTTP(w, req)
+				return
+			}
+			// Rewrite to index.html for SPA routing.
+			req.URL.Path = "/"
+			fileServer.ServeHTTP(w, req)
+		})
+	}
+
 	return r
+}
+
+var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
+
+func slugify(s string) string {
+	return strings.Trim(nonAlnum.ReplaceAllString(strings.ToLower(s), "-"), "-")
+}
+
+type apiWidget struct {
+	ID     string         `json:"id"`
+	Type   string         `json:"type"`
+	Title  string         `json:"title"`
+	Config map[string]any `json:"config,omitempty"`
+}
+
+type apiColumn struct {
+	ID      string      `json:"id"`
+	Size    string      `json:"size"`
+	Widgets []apiWidget `json:"widgets"`
+}
+
+type apiPage struct {
+	ID      string      `json:"id"`
+	Label   string      `json:"label"`
+	Slug    string      `json:"slug"`
+	Columns []apiColumn `json:"columns"`
+}
+
+func configPagesHandler(cfg *config.Config) http.HandlerFunc {
+	pages := make([]apiPage, len(cfg.Pages))
+	for i, p := range cfg.Pages {
+		pageSlug := "/" + slugify(p.Name)
+		if i == 0 {
+			pageSlug = "/"
+		}
+		pageID := slugify(p.Name)
+		cols := make([]apiColumn, len(p.Columns))
+		for j, c := range p.Columns {
+			widgets := make([]apiWidget, len(c.Widgets))
+			for k, w := range c.Widgets {
+				widgets[k] = apiWidget{
+					ID:     pageID + "-" + w.Type + "-" + strconv.Itoa(k),
+					Type:   w.Type,
+					Title:  cases.Title(language.Und).String(strings.ReplaceAll(w.Type, "-", " ")),
+					Config: w.Config,
+				}
+			}
+			cols[j] = apiColumn{
+				ID:      pageID + "-col-" + strconv.Itoa(j),
+				Size:    c.Size,
+				Widgets: widgets,
+			}
+		}
+		pages[i] = apiPage{
+			ID:      pageID,
+			Label:   p.Name,
+			Slug:    pageSlug,
+			Columns: cols,
+		}
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pages)
+	}
 }

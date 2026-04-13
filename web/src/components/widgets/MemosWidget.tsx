@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Memo } from '../../lib/types'
+import TagPicker from '../shared/TagPicker'
 
 function useMemos() {
   return useQuery({
@@ -156,6 +157,9 @@ export default function MemosWidget() {
                       {copiedTokenId === memo.id ? 'copied!' : memo.share_token}
                     </span>
                   )}
+                </div>
+                <div style={{ marginTop: '4px' }}>
+                  <TagPicker entityType="memo" entityId={memo.id} />
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', flexShrink: 0 }}>

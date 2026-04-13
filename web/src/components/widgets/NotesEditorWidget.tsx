@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Note } from '../../lib/types'
 import { useNotesStore } from '../../stores/notesStore'
+import TagPicker from '../shared/TagPicker'
 
 function useNotes(folderId: number | null) {
   return useQuery({
@@ -195,7 +196,14 @@ export default function NotesEditorWidget() {
       </div>
 
       {/* Editor */}
-      {activeNote && <NoteEditor note={activeNote} />}
+      {activeNote && (
+        <>
+          <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border)' }}>
+            <TagPicker entityType="note" entityId={activeNote.id} />
+          </div>
+          <NoteEditor note={activeNote} />
+        </>
+      )}
     </div>
   )
 }

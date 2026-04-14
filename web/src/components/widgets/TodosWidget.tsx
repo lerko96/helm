@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Todo } from '../../lib/types'
+import { useSearchStore } from '../../stores/searchStore'
 
 const PRIORITY_COLOR: Record<Todo['priority'], string> = {
   low: 'var(--color-text-dim)',
@@ -9,10 +10,13 @@ const PRIORITY_COLOR: Record<Todo['priority'], string> = {
   high: 'var(--color-accent-red)',
 }
 
-function useTodos() {
+function useTodos(query: string) {
   return useQuery({
-    queryKey: ['todos'],
-    queryFn: () => apiFetch<Todo[]>('/api/todos'),
+    queryKey: ['todos', query],
+    queryFn: () => {
+      const qs = query ? `?q=${encodeURIComponent(query)}` : ''
+      return apiFetch<Todo[]>(`/api/todos${qs}`)
+    },
   })
 }
 
@@ -53,7 +57,8 @@ function formatDue(due: string) {
 }
 
 export default function TodosWidget() {
-  const { data, isLoading, error } = useTodos()
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useTodos(query)
   const toggle = useToggleTodo()
   const create = useCreateTodo()
   const [draft, setDraft] = useState('')
@@ -93,7 +98,9 @@ export default function TodosWidget() {
     <div className="flex flex-col">
       {todos.length === 0 && (
         <div className="flex items-center justify-center" style={{ height: '80px' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>NO DATA</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+            {query ? `NO RESULTS FOR "${query}"` : 'NO DATA'}
+          </span>
         </div>
       )}
       {todos.map(todo => {

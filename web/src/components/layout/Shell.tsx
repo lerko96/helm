@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchStore } from '../../stores/searchStore'
 
 export interface Page {
   id: string
@@ -39,6 +40,7 @@ const COLUMN_UNITS: Record<string, number> = {
 
 export default function Shell({ pages, header, widgetComponents = {}, onLogout }: ShellProps) {
   const [activePage, setActivePage] = useState(pages[0]?.id ?? '')
+  const { query, setQuery } = useSearchStore()
 
   const currentPage = pages.find(p => p.id === activePage) ?? pages[0]
 
@@ -72,6 +74,26 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
           {/* Right slot */}
           <div className="flex items-center gap-3">
             {header}
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="search..."
+              style={{
+                width: query ? '240px' : '160px',
+                fontSize: 'var(--text-xs)',
+                padding: '3px 8px',
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.05em',
+                transition: 'width 0.15s ease',
+                outline: 'none',
+              }}
+              onFocus={e => (e.currentTarget.style.width = '240px')}
+              onBlur={e => { if (!query) e.currentTarget.style.width = '160px' }}
+            />
             <Clock />
             {onLogout && (
               <button

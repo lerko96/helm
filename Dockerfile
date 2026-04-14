@@ -7,14 +7,14 @@ COPY web/ ./
 RUN npm run build
 
 # ── Stage 2: Build backend ────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS backend
+FROM golang:1.26-alpine AS backend
 WORKDIR /app
 # Download deps before copying source so this layer is cached.
 COPY go.mod go.sum ./
 RUN go mod download
 # Copy source and embed the built frontend.
 COPY . .
-COPY --from=frontend /app/web/dist ./web/dist
+COPY --from=frontend /app/ui/dist ./ui/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o helm ./cmd/helm
 
 # ── Stage 3: Minimal runtime image ───────────────────────────────────────────

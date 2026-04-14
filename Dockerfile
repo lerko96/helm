@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run build
 
 # ── Stage 2: Build backend ────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS backend
+FROM golang:1.26-alpine AS backend
 WORKDIR /app
 # Download deps before copying source so this layer is cached.
 COPY go.mod go.sum ./

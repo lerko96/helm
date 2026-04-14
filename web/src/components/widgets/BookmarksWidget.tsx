@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Bookmark, BookmarkCollection } from '../../lib/types'
+import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 
-function useBookmarks(collectionId: number | null) {
+function useBookmarks(collectionId: number | null, query: string) {
   return useQuery({
-    queryKey: ['bookmarks', { collectionId }],
+    queryKey: ['bookmarks', { collectionId, query }],
     queryFn: () => {
-      const qs = collectionId != null ? `?collection_id=${collectionId}` : ''
+      const params = new URLSearchParams()
+      if (collectionId != null) params.set('collection_id', String(collectionId))
+      if (query) params.set('q', query)
+      const qs = params.toString() ? `?${params}` : ''
       return apiFetch<Bookmark[]>(`/api/bookmarks${qs}`)
     },
   })
@@ -110,7 +114,8 @@ export default function BookmarksWidget() {
   const [urlDraft, setUrlDraft] = useState('')
   const [titleDraft, setTitleDraft] = useState('')
 
-  const { data, isLoading, error } = useBookmarks(collectionFilter)
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useBookmarks(collectionFilter, query)
   const { data: collections } = useBookmarkCollections()
   const create = useCreateBookmark()
   const update = useUpdateBookmark()
@@ -249,7 +254,9 @@ export default function BookmarksWidget() {
       {/* Bookmark list */}
       {bookmarks.length === 0 && (
         <div className="flex items-center justify-center" style={{ height: '80px' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>NO DATA</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+            {query ? `NO RESULTS FOR "${query}"` : 'NO DATA'}
+          </span>
         </div>
       )}
       {bookmarks.map(bm => {

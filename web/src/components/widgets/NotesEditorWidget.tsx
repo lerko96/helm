@@ -3,14 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Note } from '../../lib/types'
 import { useNotesStore } from '../../stores/notesStore'
+import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 import MarkdownRenderer from '../shared/MarkdownRenderer'
 
-function useNotes(folderId: number | null) {
+function useNotes(folderId: number | null, query: string) {
   return useQuery({
-    queryKey: ['notes', folderId],
+    queryKey: ['notes', folderId, query],
     queryFn: () => {
-      const qs = folderId != null ? `?folder_id=${folderId}` : ''
+      const params = new URLSearchParams()
+      if (folderId != null) params.set('folder_id', String(folderId))
+      if (query) params.set('q', query)
+      const qs = params.toString() ? `?${params}` : ''
       return apiFetch<Note[]>(`/api/notes${qs}`)
     },
   })
@@ -128,7 +132,8 @@ function NoteEditor({ note }: { note: Note }) {
 
 export default function NotesEditorWidget() {
   const { selectedFolderId, selectedNoteId, setNote } = useNotesStore()
-  const { data, isLoading, error } = useNotes(selectedFolderId)
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useNotes(selectedFolderId, query)
   const createNote = useCreateNote(selectedFolderId)
   const togglePin = useToggleNotePin()
   const [draft, setDraft] = useState('')
@@ -168,7 +173,9 @@ export default function NotesEditorWidget() {
       <div style={{ borderBottom: '1px solid var(--color-border)' }}>
         {notes.length === 0 && !activeNote && (
           <div className="flex items-center justify-center" style={{ height: '60px' }}>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>NO NOTES</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+              {query ? `NO RESULTS FOR "${query}"` : 'NO NOTES'}
+            </span>
           </div>
         )}
         {notes.map(note => (

@@ -32,6 +32,8 @@ export interface Todo {
   priority: 'low' | 'medium' | 'high'
   is_pinned: boolean
   due_date: string | null
+  has_recurrence?: boolean
+  recurrence_rrule?: string | null
   tags?: Tag[]
   subtasks?: Todo[]
   created_at: string

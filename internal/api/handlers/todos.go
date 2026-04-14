@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/lerko/helm/internal/recurrence"
 )
 
 // parseDueDate accepts "YYYY-MM-DD" or RFC3339; returns nil for empty string.
@@ -31,20 +33,22 @@ type TodoList struct {
 }
 
 type Todo struct {
-	ID          int64      `json:"id"`
-	UserID      int64      `json:"user_id"`
-	ListID      *int64     `json:"list_id"`
-	ParentID    *int64     `json:"parent_id"`
-	Title       string     `json:"title"`
-	Description *string    `json:"description"`
-	Status      string     `json:"status"`
-	Priority    string     `json:"priority"`
-	DueDate     *time.Time `json:"due_date"`
-	IsPinned    bool       `json:"is_pinned"`
-	Tags        []Tag      `json:"tags,omitempty"`
-	Subtasks    []Todo     `json:"subtasks,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID              int64      `json:"id"`
+	UserID          int64      `json:"user_id"`
+	ListID          *int64     `json:"list_id"`
+	ParentID        *int64     `json:"parent_id"`
+	Title           string     `json:"title"`
+	Description     *string    `json:"description"`
+	Status          string     `json:"status"`
+	Priority        string     `json:"priority"`
+	DueDate         *time.Time `json:"due_date"`
+	IsPinned        bool       `json:"is_pinned"`
+	HasRecurrence   bool       `json:"has_recurrence"`
+	RecurrenceRRule *string    `json:"recurrence_rrule,omitempty"`
+	Tags            []Tag      `json:"tags,omitempty"`
+	Subtasks        []Todo     `json:"subtasks,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
@@ -128,30 +132,32 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 		q := r.URL.Query()
 		// By default only return top-level todos; subtasks are fetched via GetTodo.
 		query := `
-			SELECT id, user_id, list_id, parent_id, title, description, status, priority, due_date, is_pinned, created_at, updated_at
-			FROM todos WHERE user_id = ? AND parent_id IS NULL`
+			SELECT t.id, t.user_id, t.list_id, t.parent_id, t.title, t.description, t.status, t.priority, t.due_date, t.is_pinned, t.created_at, t.updated_at,
+			       CASE WHEN tr.todo_id IS NOT NULL THEN 1 ELSE 0 END, tr.rrule
+			FROM todos t LEFT JOIN todo_recurrences tr ON tr.todo_id = t.id
+			WHERE t.user_id = ? AND t.parent_id IS NULL`
 		args := []any{defaultUserID}
 
 		if v := q.Get("list_id"); v != "" {
-			query += " AND list_id = ?"
+			query += " AND t.list_id = ?"
 			args = append(args, v)
 		}
 		if v := q.Get("status"); v != "" {
-			query += " AND status = ?"
+			query += " AND t.status = ?"
 			args = append(args, v)
 		}
 		if v := q.Get("priority"); v != "" {
-			query += " AND priority = ?"
+			query += " AND t.priority = ?"
 			args = append(args, v)
 		}
 		if q.Get("pinned") == "true" {
-			query += " AND is_pinned = 1"
+			query += " AND t.is_pinned = 1"
 		}
 		if s := q.Get("q"); s != "" {
-			query += " AND (title LIKE ? OR description LIKE ?)"
+			query += " AND (t.title LIKE ? OR t.description LIKE ?)"
 			args = append(args, "%"+s+"%", "%"+s+"%")
 		}
-		query += " ORDER BY is_pinned DESC, due_date ASC NULLS LAST, updated_at DESC"
+		query += " ORDER BY t.is_pinned DESC, t.due_date ASC NULLS LAST, t.updated_at DESC"
 
 		rows, err := db.QueryContext(r.Context(), query, args...)
 		if err != nil {
@@ -163,7 +169,7 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 		todos := []Todo{}
 		for rows.Next() {
 			var t Todo
-			if err := rows.Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			if err := rows.Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt, &t.HasRecurrence, &t.RecurrenceRRule); err != nil {
 				respondError(w, http.StatusInternalServerError, "scan failed")
 				return
 			}
@@ -183,9 +189,11 @@ func GetTodo(db *sql.DB) http.HandlerFunc {
 
 		var t Todo
 		err = db.QueryRowContext(r.Context(), `
-			SELECT id, user_id, list_id, parent_id, title, description, status, priority, due_date, is_pinned, created_at, updated_at
-			FROM todos WHERE id = ? AND user_id = ?`, id, defaultUserID,
-		).Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt)
+			SELECT t.id, t.user_id, t.list_id, t.parent_id, t.title, t.description, t.status, t.priority, t.due_date, t.is_pinned, t.created_at, t.updated_at,
+			       CASE WHEN tr.todo_id IS NOT NULL THEN 1 ELSE 0 END, tr.rrule
+			FROM todos t LEFT JOIN todo_recurrences tr ON tr.todo_id = t.id
+			WHERE t.id = ? AND t.user_id = ?`, id, defaultUserID,
+		).Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt, &t.HasRecurrence, &t.RecurrenceRRule)
 		if err == sql.ErrNoRows {
 			respondError(w, http.StatusNotFound, "todo not found")
 			return
@@ -327,6 +335,81 @@ func DeleteTodo(db *sql.DB) http.HandlerFunc {
 		}
 		if _, err := db.ExecContext(r.Context(),
 			`DELETE FROM todos WHERE id = ? AND user_id = ?`, id, defaultUserID,
+		); err != nil {
+			respondError(w, http.StatusInternalServerError, "delete failed")
+			return
+		}
+		respond(w, http.StatusNoContent, nil)
+	}
+}
+
+// ── Recurrences ───────────────────────────────────────────────────────────────
+
+func CreateTodoRecurrence(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := idParam(r)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid id")
+			return
+		}
+		var req struct {
+			RRule string `json:"rrule"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			respondError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		freq, interval, err := recurrence.ParseRRule(req.RRule)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "unsupported rrule: "+err.Error())
+			return
+		}
+
+		var dueDate *time.Time
+		var createdAt time.Time
+		err = db.QueryRowContext(r.Context(),
+			`SELECT due_date, created_at FROM todos WHERE id = ? AND user_id = ?`, id, defaultUserID,
+		).Scan(&dueDate, &createdAt)
+		if err == sql.ErrNoRows {
+			respondError(w, http.StatusNotFound, "todo not found")
+			return
+		}
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "query failed")
+			return
+		}
+
+		base := createdAt
+		if dueDate != nil {
+			base = *dueDate
+		}
+		nextOccurrence := recurrence.Advance(base, freq, interval)
+
+		// Upsert: replace any existing recurrence for this todo.
+		_, _ = db.ExecContext(r.Context(), `DELETE FROM todo_recurrences WHERE todo_id = ?`, id)
+		if _, err = db.ExecContext(r.Context(),
+			`INSERT INTO todo_recurrences (todo_id, rrule, next_occurrence) VALUES (?, ?, ?)`,
+			id, req.RRule, nextOccurrence,
+		); err != nil {
+			respondError(w, http.StatusInternalServerError, "insert failed")
+			return
+		}
+		respond(w, http.StatusCreated, map[string]string{"rrule": req.RRule})
+	}
+}
+
+func DeleteTodoRecurrence(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := idParam(r)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid id")
+			return
+		}
+		if _, err := db.ExecContext(r.Context(), `
+			DELETE FROM todo_recurrences
+			WHERE todo_id = ? AND todo_id IN (SELECT id FROM todos WHERE user_id = ?)`,
+			id, defaultUserID,
 		); err != nil {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return

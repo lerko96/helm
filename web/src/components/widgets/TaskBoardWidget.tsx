@@ -105,6 +105,33 @@ function useCreateTodo(listId: number | null) {
   })
 }
 
+function useSetRecurrence(todoId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (rrule: string) =>
+      apiFetch<void>(`/api/todos/${todoId}/recurrences`, {
+        method: 'POST',
+        body: JSON.stringify({ rrule }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['todos'] })
+      qc.invalidateQueries({ queryKey: ['todos', todoId] })
+    },
+  })
+}
+
+function useClearRecurrence(todoId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<void>(`/api/todos/${todoId}/recurrences`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['todos'] })
+      qc.invalidateQueries({ queryKey: ['todos', todoId] })
+    },
+  })
+}
+
 function formatDue(due: string) {
   return new Date(due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -121,12 +148,25 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
   const update = useUpdateTodo()
   const del = useDeleteTodo()
   const create = useCreateTodo(listId)
+  const setRecurrence = useSetRecurrence(todo.id)
+  const clearRecurrence = useClearRecurrence(todo.id)
   const [descDraft, setDescDraft] = useState<string | null>(null)
   const [dueDraft, setDueDraft] = useState<string | null>(null)
   const [subtaskDraft, setSubtaskDraft] = useState('')
 
   const merged = detail ?? todo
   const subtasks = merged.subtasks ?? []
+
+  const currentRRule = merged.recurrence_rrule ?? null
+  const currentFreq = currentRRule ? (currentRRule.match(/FREQ=(\w+)/)?.[1] ?? null) : null
+
+  function handleRecurrence(freq: string | null) {
+    if (!freq || currentFreq === freq) {
+      clearRecurrence.mutate()
+    } else {
+      setRecurrence.mutate(`FREQ=${freq};INTERVAL=1`)
+    }
+  }
 
   function saveDesc() {
     if (descDraft === null) return
@@ -204,6 +244,34 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
           onBlur={saveDue}
           style={{ fontSize: 'var(--text-xs)', padding: '2px 4px' }}
         />
+      </div>
+
+      {/* Recurrence */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: 'var(--letter-spacing-label)', width: '60px' }}>
+          REPEAT
+        </span>
+        {(['NONE', 'DAILY', 'WEEKLY', 'MONTHLY'] as const).map(f => {
+          const active = f === 'NONE' ? !currentFreq : currentFreq === f
+          return (
+            <button
+              key={f}
+              onClick={() => handleRecurrence(f === 'NONE' ? null : f)}
+              style={{
+                fontSize: '9px',
+                letterSpacing: 'var(--letter-spacing-label)',
+                padding: '2px 6px',
+                border: '1px solid',
+                borderColor: active ? 'var(--color-text-label)' : 'var(--color-border)',
+                background: 'transparent',
+                color: active ? 'var(--color-text-primary)' : 'var(--color-text-dim)',
+                cursor: 'pointer',
+              }}
+            >
+              {f}
+            </button>
+          )
+        })}
       </div>
 
       {/* Description */}
@@ -482,6 +550,12 @@ export default function TaskBoardWidget() {
                     {todo.due_date && (
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-label)', letterSpacing: 'var(--letter-spacing-label)', flexShrink: 0 }}>
                         {formatDue(todo.due_date)}
+                      </span>
+                    )}
+
+                    {todo.has_recurrence && (
+                      <span className="status status-neutral" style={{ fontSize: '9px', letterSpacing: 'var(--letter-spacing-label)', flexShrink: 0 }}>
+                        RECURRING
                       </span>
                     )}
 

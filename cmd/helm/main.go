@@ -11,6 +11,7 @@ import (
 	"github.com/lerko/helm/internal/broker"
 	"github.com/lerko/helm/internal/config"
 	"github.com/lerko/helm/internal/db"
+	"github.com/lerko/helm/internal/recurrence"
 	"github.com/lerko/helm/internal/reminder"
 	"github.com/lerko/helm/ui"
 )
@@ -43,6 +44,9 @@ func main() {
 	b := broker.New()
 	stopReminders := reminder.StartScheduler(database, b)
 	defer stopReminders()
+
+	stopRecurrence := recurrence.StartScheduler(database)
+	defer stopRecurrence()
 
 	var uiFS fs.FS
 	if f, err := ui.FS(); err == nil {

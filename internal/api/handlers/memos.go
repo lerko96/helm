@@ -39,8 +39,8 @@ func ListMemos(db *sql.DB) http.HandlerFunc {
 			query += " AND is_pinned = 1"
 		}
 		if s := q.Get("q"); s != "" {
-			query += " AND content LIKE ?"
-			args = append(args, "%"+s+"%")
+			query += " AND id IN (SELECT rowid FROM memos_fts WHERE memos_fts MATCH ?)"
+			args = append(args, s+"*")
 		}
 		query += " ORDER BY is_pinned DESC, created_at DESC"
 

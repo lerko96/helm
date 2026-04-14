@@ -154,8 +154,8 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 			query += " AND t.is_pinned = 1"
 		}
 		if s := q.Get("q"); s != "" {
-			query += " AND (t.title LIKE ? OR t.description LIKE ?)"
-			args = append(args, "%"+s+"%", "%"+s+"%")
+			query += " AND t.id IN (SELECT rowid FROM todos_fts WHERE todos_fts MATCH ?)"
+			args = append(args, s+"*")
 		}
 		query += " ORDER BY t.is_pinned DESC, t.due_date ASC NULLS LAST, t.updated_at DESC"
 

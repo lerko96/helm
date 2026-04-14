@@ -35,8 +35,8 @@ func ListClipboardItems(db *sql.DB) http.HandlerFunc {
 			query += " AND is_pinned = 1"
 		}
 		if s := q.Get("q"); s != "" {
-			query += " AND (title LIKE ? OR content LIKE ?)"
-			args = append(args, "%"+s+"%", "%"+s+"%")
+			query += " AND id IN (SELECT rowid FROM clipboard_fts WHERE clipboard_fts MATCH ?)"
+			args = append(args, s+"*")
 		}
 		query += " ORDER BY is_pinned DESC, created_at DESC"
 

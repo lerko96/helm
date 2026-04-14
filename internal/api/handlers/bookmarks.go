@@ -117,8 +117,8 @@ func ListBookmarks(db *sql.DB) http.HandlerFunc {
 			query += " AND is_pinned = 1"
 		}
 		if s := q.Get("q"); s != "" {
-			query += " AND (title LIKE ? OR url LIKE ? OR description LIKE ?)"
-			args = append(args, "%"+s+"%", "%"+s+"%", "%"+s+"%")
+			query += " AND id IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?)"
+			args = append(args, s+"*")
 		}
 		query += " ORDER BY is_pinned DESC, created_at DESC"
 

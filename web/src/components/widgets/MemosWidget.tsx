@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Memo } from '../../lib/types'
 import TagPicker from '../shared/TagPicker'
+import MarkdownRenderer from '../shared/MarkdownRenderer'
 
 function useMemos() {
   return useQuery({
@@ -56,6 +57,7 @@ export default function MemosWidget() {
   const del = useDeleteMemo()
   const [draft, setDraft] = useState('')
   const [copiedTokenId, setCopiedTokenId] = useState<number | null>(null)
+  const [expandedMemoId, setExpandedMemoId] = useState<number | null>(null)
 
   function handleSubmit() {
     const content = draft.trim()
@@ -112,23 +114,30 @@ export default function MemosWidget() {
               style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '4px', cursor: 'pointer' }}
+                  onClick={() => setExpandedMemoId(expandedMemoId === memo.id ? null : memo.id)}
+                >
                   {memo.is_pinned && (
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-primary)', flexShrink: 0 }}>◆</span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-primary)', flexShrink: 0, marginTop: '3px' }}>◆</span>
                   )}
-                  <div
-                    style={{
-                      fontSize: 'var(--text-sm)',
-                      color: 'var(--color-text-primary)',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      lineHeight: '1.5',
-                    }}
-                  >
-                    {memo.content}
-                  </div>
+                  {expandedMemoId === memo.id ? (
+                    <MarkdownRenderer content={memo.content} />
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--color-text-primary)',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: '1.5',
+                      }}
+                    >
+                      {memo.content}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-label)', letterSpacing: 'var(--letter-spacing-label)' }}>

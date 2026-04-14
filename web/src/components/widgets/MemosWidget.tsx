@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Memo } from '../../lib/types'
+import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 import MarkdownRenderer from '../shared/MarkdownRenderer'
 
-function useMemos() {
+function useMemos(query: string) {
   return useQuery({
-    queryKey: ['memos'],
-    queryFn: () => apiFetch<Memo[]>('/api/memos'),
+    queryKey: ['memos', query],
+    queryFn: () => {
+      const qs = query ? `?q=${encodeURIComponent(query)}` : ''
+      return apiFetch<Memo[]>(`/api/memos${qs}`)
+    },
   })
 }
 
@@ -51,7 +55,8 @@ function formatTs(ts: string) {
 }
 
 export default function MemosWidget() {
-  const { data, isLoading, error } = useMemos()
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useMemos(query)
   const create = useCreateMemo()
   const update = useUpdateMemo()
   const del = useDeleteMemo()
@@ -105,7 +110,9 @@ export default function MemosWidget() {
       <div className="flex flex-col" style={{ overflowY: 'auto', flex: 1 }}>
         {memos.length === 0 ? (
           <div className="flex items-center justify-center" style={{ height: '80px' }}>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>NO DATA</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+              {query ? `NO RESULTS FOR "${query}"` : 'NO DATA'}
+            </span>
           </div>
         ) : (
           memos.map(memo => (

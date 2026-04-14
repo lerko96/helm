@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { ClipboardItem } from '../../lib/types'
+import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 
-function useClipboard() {
+function useClipboard(query: string) {
   return useQuery({
-    queryKey: ['clipboard'],
-    queryFn: () => apiFetch<ClipboardItem[]>('/api/clipboard'),
+    queryKey: ['clipboard', query],
+    queryFn: () => {
+      const qs = query ? `?q=${encodeURIComponent(query)}` : ''
+      return apiFetch<ClipboardItem[]>(`/api/clipboard${qs}`)
+    },
   })
 }
 
@@ -44,7 +48,8 @@ function useDeleteClipboardItem() {
 }
 
 export default function ClipboardWidget() {
-  const { data, isLoading, error } = useClipboard()
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useClipboard(query)
   const create = useCreateClipboardItem()
   const update = useUpdateClipboardItem()
   const del = useDeleteClipboardItem()
@@ -108,7 +113,9 @@ export default function ClipboardWidget() {
     <div className="flex flex-col">
       {items.length === 0 && (
         <div className="flex items-center justify-center" style={{ height: '80px' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>NO DATA</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+            {query ? `NO RESULTS FOR "${query}"` : 'NO DATA'}
+          </span>
         </div>
       )}
       {items.map(item => (

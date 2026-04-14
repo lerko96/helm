@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Todo } from '../../lib/types'
 import { useTasksStore } from '../../stores/tasksStore'
+import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 
 const STATUS_ORDER: Todo['status'][] = ['not_started', 'in_progress', 'done']
@@ -29,11 +30,14 @@ const PRIORITY_COLOR: Record<Todo['priority'], string> = {
   high: 'var(--color-accent-red)',
 }
 
-function useTodos(listId: number | null) {
+function useTodos(listId: number | null, query: string) {
   return useQuery({
-    queryKey: ['todos', listId],
+    queryKey: ['todos', listId, query],
     queryFn: () => {
-      const qs = listId != null ? `?list_id=${listId}` : ''
+      const params = new URLSearchParams()
+      if (listId != null) params.set('list_id', String(listId))
+      if (query) params.set('q', query)
+      const qs = params.toString() ? `?${params}` : ''
       return apiFetch<Todo[]>(`/api/todos${qs}`)
     },
   })
@@ -300,7 +304,8 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
 
 export default function TaskBoardWidget() {
   const { selectedListId } = useTasksStore()
-  const { data, isLoading, error } = useTodos(selectedListId)
+  const { query } = useSearchStore()
+  const { data, isLoading, error } = useTodos(selectedListId, query)
   const update = useUpdateTodo()
   const del = useDeleteTodo()
   const create = useCreateTodo(selectedListId)
@@ -329,6 +334,18 @@ export default function TaskBoardWidget() {
 
   // Only show top-level todos (no parent) in the board
   const todos = (data ?? []).filter(t => t.parent_id == null)
+
+  if (query && todos.length === 0) {
+    return (
+      <div className="flex flex-col">
+        <div className="flex items-center justify-center" style={{ height: '80px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)', letterSpacing: '0.1em' }}>
+            {`NO RESULTS FOR "${query}"`}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   const grouped = STATUS_ORDER.reduce<Record<Todo['status'], Todo[]>>(
     (acc, s) => ({ ...acc, [s]: todos.filter(t => t.status === s) }),

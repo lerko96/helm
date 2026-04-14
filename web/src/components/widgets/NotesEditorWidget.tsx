@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/api'
 import type { Note } from '../../lib/types'
 import { useNotesStore } from '../../stores/notesStore'
 import TagPicker from '../shared/TagPicker'
+import MarkdownRenderer from '../shared/MarkdownRenderer'
 
 function useNotes(folderId: number | null) {
   return useQuery({
@@ -61,11 +62,17 @@ function useCreateNote(folderId: number | null) {
 
 function NoteEditor({ note }: { note: Note }) {
   const [content, setContent] = useState(note.content ?? '')
+  const [viewMode, setViewMode] = useState(false)
   const update = useUpdateNote()
 
   useEffect(() => {
     setContent(note.content ?? '')
-  }, [note.id, note.content])
+    setViewMode(false)
+  }, [note.id])
+
+  useEffect(() => {
+    if (!viewMode) setContent(note.content ?? '')
+  }, [note.content])
 
   function handleBlur() {
     if (content !== (note.content ?? '')) {
@@ -74,22 +81,48 @@ function NoteEditor({ note }: { note: Note }) {
   }
 
   return (
-    <textarea
-      value={content}
-      onChange={e => setContent(e.target.value)}
-      onBlur={handleBlur}
-      style={{
-        width: '100%',
-        minHeight: '300px',
-        resize: 'none',
-        fontSize: 'var(--text-sm)',
-        lineHeight: '1.6',
-        padding: '12px',
-        border: 'none',
-        borderTop: '1px solid var(--color-border)',
-        background: 'var(--color-bg)',
-      }}
-    />
+    <>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          padding: '4px 12px',
+          borderTop: '1px solid var(--color-border)',
+          borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
+        }}
+      >
+        <button
+          className="btn-ghost"
+          onClick={() => setViewMode(v => !v)}
+          style={{ fontSize: '10px', padding: '2px 8px', letterSpacing: '0.1em' }}
+        >
+          {viewMode ? 'EDIT' : 'VIEW'}
+        </button>
+      </div>
+      {viewMode ? (
+        <div style={{ padding: '12px', minHeight: '300px', borderTop: '1px solid var(--color-border)' }}>
+          <MarkdownRenderer content={content} />
+        </div>
+      ) : (
+        <textarea
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          onBlur={handleBlur}
+          style={{
+            width: '100%',
+            minHeight: '300px',
+            resize: 'none',
+            fontSize: 'var(--text-sm)',
+            lineHeight: '1.6',
+            padding: '12px',
+            border: 'none',
+            borderTop: '1px solid var(--color-border)',
+            background: 'var(--color-bg)',
+          }}
+        />
+      )}
+    </>
   )
 }
 
@@ -204,6 +237,7 @@ export default function NotesEditorWidget() {
           <NoteEditor note={activeNote} />
         </>
       )}
+
     </div>
   )
 }

@@ -162,6 +162,21 @@ export default function ClipboardWidget() {
               ×
             </button>
           </div>
+          {item.language && (
+            <pre
+              style={{
+                marginTop: '6px',
+                border: '1px solid var(--color-border)',
+                padding: '8px 10px',
+                overflowX: 'auto',
+                background: 'var(--color-surface-raised)',
+                fontSize: 'var(--text-xs)',
+                lineHeight: '1.5',
+              }}
+            >
+              <code>{item.content}</code>
+            </pre>
+          )}
           <div style={{ marginTop: '4px' }}>
             <TagPicker entityType="clipboard" entityId={item.id} />
           </div>

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
 import { isAuthenticated, clearToken } from './lib/auth'
 import { apiFetch } from './lib/api'
+import { startSSE, type ReminderEvent } from './lib/sse'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
 import ClipboardWidget from './components/widgets/ClipboardWidget'
@@ -42,6 +43,35 @@ const WIDGET_COMPONENTS = {
 export default function App() {
   const [authed, setAuthed] = useState(isAuthenticated)
   const [pages, setPages] = useState<Page[] | null>(null)
+  const [banner, setBanner] = useState<string | null>(null)
+  const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const notifPermission = useRef<NotificationPermission>('default')
+
+  const showBanner = useCallback((msg: string) => {
+    setBanner(msg)
+    if (bannerTimer.current) clearTimeout(bannerTimer.current)
+    bannerTimer.current = setTimeout(() => setBanner(null), 6000)
+  }, [])
+
+  const onReminder = useCallback((r: ReminderEvent) => {
+    const title = `REMINDER — ${r.entity_type.toUpperCase()} #${r.entity_id}`
+    const body = `Due: ${new Date(r.remind_at).toLocaleString()}`
+
+    if (notifPermission.current === 'granted') {
+      new Notification(title, { body })
+    } else if (notifPermission.current === 'default') {
+      Notification.requestPermission().then(perm => {
+        notifPermission.current = perm
+        if (perm === 'granted') {
+          new Notification(title, { body })
+        } else {
+          showBanner(`${title} — ${body}`)
+        }
+      })
+    } else {
+      showBanner(`${title} — ${body}`)
+    }
+  }, [showBanner])
 
   useEffect(() => {
     if (!authed) return
@@ -49,6 +79,12 @@ export default function App() {
       .then(setPages)
       .catch(() => setPages([]))
   }, [authed])
+
+  useEffect(() => {
+    if (!authed) return
+    const stop = startSSE(onReminder)
+    return stop
+  }, [authed, onReminder])
 
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />
@@ -71,11 +107,22 @@ export default function App() {
     clearToken()
     setAuthed(false)
     setPages(null)
+    setBanner(null)
   }
+
+  const bannerEl = banner ? (
+    <span
+      className="status status-alert"
+      style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.05em', cursor: 'pointer' }}
+      onClick={() => setBanner(null)}
+    >
+      {banner}
+    </span>
+  ) : undefined
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Shell pages={pages} widgetComponents={WIDGET_COMPONENTS} onLogout={handleLogout} />
+      <Shell pages={pages} header={bannerEl} widgetComponents={WIDGET_COMPONENTS} onLogout={handleLogout} />
     </QueryClientProvider>
   )
 }

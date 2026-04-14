@@ -49,7 +49,7 @@ Serves on `:8080` by default.
 | `task-board` | Kanban view of the same tasks. Expandable detail: subtasks, description, tags, due date, priority |
 | `task-lists` | Manage todo lists — create with color, delete |
 | `calendar` | Month view + local event creation. CalDAV source management via `cal-sources` |
-| `cal-sources` | Add/delete CalDAV sources, trigger manual sync (queued) |
+| `cal-sources` | Add/delete CalDAV sources, trigger manual sync |
 | `clipboard` | Paste store with optional title and language. Code items render in `<pre>` blocks |
 | `bookmarks` | URL store. Collections, public/private, pin, tags |
 | `notes-folders` | Folder picker for notes |
@@ -70,15 +70,11 @@ All widgets support global search from the header bar. Tags attach/detach from e
 - Memos: public/private visibility, share tokens, pin
 - Bookmarks: collections, edit, pin, public/private
 - Calendar: local events, source management UI
-- Global search: header input filters all compatible widgets simultaneously
-
-## What's stubbed / not yet done
-
-- **CalDAV sync** — source management UI works; `POST /sync` returns 202 but does nothing (`internal/caldav/` is empty)
-- **Attachments** — DB schema exists, storage path configured, no upload handlers
-- **Reminders** — CRUD exists, nothing fires
-- **Recurring tasks** — schema exists, no scheduler
-- **Full-text search** — LIKE-based; FTS5 not yet migrated
+- Global search: FTS5 full-text search across all widgets from the header bar
+- File attachments: upload/download/delete on notes
+- Reminders: set on any entity; due reminders fire as browser notifications via SSE
+- Recurring todos: daily/weekly/monthly; new copies spawn on schedule
+- CalDAV sync: etag deduplication, auto every 15 min, manual sync from `cal-sources` widget
 
 ---
 

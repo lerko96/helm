@@ -4,10 +4,15 @@ package caldav
 
 import (
 	"bytes"
+	"crypto/md5"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -65,17 +70,10 @@ func (c *Client) FetchEvents(from, to time.Time) ([]Event, error) {
 		to.UTC().Format("20060102T150405Z"),
 	)
 
-	req, err := http.NewRequest("REPORT", c.URL, bytes.NewBufferString(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
-	req.Header.Set("Depth", "1")
-	if c.Username != "" {
-		req.SetBasicAuth(c.Username, c.Password)
-	}
-
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest("REPORT", c.URL, []byte(body), map[string]string{
+		"Content-Type": "application/xml; charset=utf-8",
+		"Depth":        "1",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("caldav REPORT: %w", err)
 	}
@@ -87,6 +85,131 @@ func (c *Client) FetchEvents(from, to time.Time) ([]Event, error) {
 	}
 
 	return parseMultistatus(resp.Body)
+}
+
+// doRequest executes an HTTP request and transparently handles Basic and Digest auth challenges.
+func (c *Client) doRequest(method, rawURL string, body []byte, headers map[string]string) (*http.Response, error) {
+	makeReq := func(authHeader string) (*http.Request, error) {
+		req, err := http.NewRequest(method, rawURL, bytes.NewBuffer(body))
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		if authHeader != "" {
+			req.Header.Set("Authorization", authHeader)
+		}
+		return req, nil
+	}
+
+	// First attempt: no auth
+	req, err := makeReq("")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized || c.Username == "" {
+		return resp, nil
+	}
+
+	// Parse challenge
+	wwwAuth := resp.Header.Get("WWW-Authenticate")
+	resp.Body.Close()
+
+	var authHeader string
+	switch {
+	case strings.HasPrefix(wwwAuth, "Digest "):
+		authHeader, err = buildDigestAuth(c.Username, c.Password, method, rawURL,
+			parseDigestChallenge(wwwAuth))
+		if err != nil {
+			return nil, fmt.Errorf("digest auth: %w", err)
+		}
+	case strings.HasPrefix(wwwAuth, "Basic "):
+		authHeader = "Basic " + basicCredentials(c.Username, c.Password)
+	default:
+		// Unknown scheme — try Basic anyway
+		authHeader = "Basic " + basicCredentials(c.Username, c.Password)
+	}
+
+	req, err = makeReq(authHeader)
+	if err != nil {
+		return nil, err
+	}
+	return c.httpClient.Do(req)
+}
+
+// ── Auth helpers ──────────────────────────────────────────────────────────────
+
+func basicCredentials(username, password string) string {
+	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+}
+
+func parseDigestChallenge(header string) map[string]string {
+	header = strings.TrimPrefix(header, "Digest ")
+	params := make(map[string]string)
+	for _, part := range strings.Split(header, ",") {
+		part = strings.TrimSpace(part)
+		idx := strings.IndexByte(part, '=')
+		if idx < 0 {
+			continue
+		}
+		k := strings.TrimSpace(part[:idx])
+		v := strings.Trim(strings.TrimSpace(part[idx+1:]), `"`)
+		params[k] = v
+	}
+	return params
+}
+
+func buildDigestAuth(username, password, method, rawURL string, ch map[string]string) (string, error) {
+	realm := ch["realm"]
+	nonce := ch["nonce"]
+	qop := ch["qop"]
+	opaque := ch["opaque"]
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	uri := u.RequestURI()
+
+	ha1 := md5hex(username + ":" + realm + ":" + password)
+	ha2 := md5hex(method + ":" + uri)
+
+	var response, nc, cnonce string
+	if strings.Contains(qop, "auth") {
+		nc = "00000001"
+		cnonce = randomHex(8)
+		response = md5hex(ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":auth:" + ha2)
+	} else {
+		response = md5hex(ha1 + ":" + nonce + ":" + ha2)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, `Digest username=%q, realm=%q, nonce=%q, uri=%q, response=%q`,
+		username, realm, nonce, uri, response)
+	if opaque != "" {
+		fmt.Fprintf(&b, `, opaque=%q`, opaque)
+	}
+	if strings.Contains(qop, "auth") {
+		fmt.Fprintf(&b, `, qop=auth, nc=%s, cnonce=%q`, nc, cnonce)
+	}
+	return b.String(), nil
+}
+
+func md5hex(s string) string {
+	h := md5.Sum([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
+func randomHex(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // ── XML parsing ───────────────────────────────────────────────────────────────

@@ -84,6 +84,17 @@ export interface Bookmark {
   created_at: string
 }
 
+export interface CalendarSource {
+  id: number
+  name: string
+  url: string | null
+  username: string | null
+  color: string
+  is_local: boolean
+  last_synced_at: string | null
+  created_at: string
+}
+
 export interface CalendarEvent {
   id: number
   source_id: string | null

@@ -29,12 +29,10 @@ pages:
               filter: today   # today | all | pinned
       - size: large
         widgets:
-          - type: calendar
+          - type: cal-view
       - size: small
         widgets:
-          - type: notes
-            config:
-              pinned_only: false
+          - type: notes-editor
           - type: bookmarks
           - type: clipboard
             config:

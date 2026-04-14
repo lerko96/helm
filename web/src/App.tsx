@@ -4,7 +4,7 @@ import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
 import { isAuthenticated, clearToken } from './lib/auth'
 import { apiFetch } from './lib/api'
-import { startSSE, type ReminderEvent } from './lib/sse'
+import { startSSE, type ReminderEvent, type CaldavSyncedEvent } from './lib/sse'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
 import ClipboardWidget from './components/widgets/ClipboardWidget'
@@ -73,6 +73,11 @@ export default function App() {
     }
   }, [showBanner])
 
+  const onCaldavSynced = useCallback((_e: CaldavSyncedEvent) => {
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+    queryClient.invalidateQueries({ queryKey: ['calendar-sources'] })
+  }, [])
+
   useEffect(() => {
     if (!authed) return
     apiFetch<Page[]>('/api/config/pages')
@@ -82,9 +87,9 @@ export default function App() {
 
   useEffect(() => {
     if (!authed) return
-    const stop = startSSE(onReminder)
+    const stop = startSSE({ onReminder, onCaldavSynced })
     return stop
-  }, [authed, onReminder])
+  }, [authed, onReminder, onCaldavSynced])
 
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />

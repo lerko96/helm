@@ -7,7 +7,17 @@ export interface ReminderEvent {
   remind_at: string
 }
 
-export function startSSE(onReminder: (r: ReminderEvent) => void): () => void {
+export interface CaldavSyncedEvent {
+  source_id: number
+  error: boolean
+}
+
+export interface SSEHandlers {
+  onReminder: (r: ReminderEvent) => void
+  onCaldavSynced?: (e: CaldavSyncedEvent) => void
+}
+
+export function startSSE(handlers: SSEHandlers): () => void {
   const token = getToken()
   if (!token) return () => {}
 
@@ -22,8 +32,12 @@ export function startSSE(onReminder: (r: ReminderEvent) => void): () => void {
 
     es.onmessage = (e) => {
       try {
-        const data = JSON.parse(e.data) as ReminderEvent
-        if (data.id) onReminder(data)
+        const data = JSON.parse(e.data) as Record<string, unknown>
+        if (data.type === 'caldav_synced') {
+          handlers.onCaldavSynced?.({ source_id: data.source_id as number, error: data.error as boolean })
+        } else if (data.id) {
+          handlers.onReminder(data as unknown as ReminderEvent)
+        }
       } catch {
         // ignore non-JSON pings
       }

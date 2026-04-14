@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lerko/helm/internal/broker"
 	"github.com/lerko/helm/internal/caldav"
 )
 
@@ -136,7 +137,7 @@ func DeleteCalendarSource(db *sql.DB) http.HandlerFunc {
 }
 
 // SyncCalendarSource triggers an immediate CalDAV sync for the given source in a goroutine.
-func SyncCalendarSource(db *sql.DB, secret string) http.HandlerFunc {
+func SyncCalendarSource(db *sql.DB, secret string, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -164,9 +165,16 @@ func SyncCalendarSource(db *sql.DB, secret string) http.HandlerFunc {
 		src.PasswordEnc = passwordEnc.String
 
 		go func() {
-			if err := caldav.SyncSource(db, src, secret); err != nil {
-				log.Printf("caldav: manual sync source %d: %v", src.ID, err)
+			syncErr := caldav.SyncSource(db, src, secret)
+			if syncErr != nil {
+				log.Printf("caldav: manual sync source %d: %v", src.ID, syncErr)
 			}
+			payload, _ := json.Marshal(map[string]any{
+				"type":      "caldav_synced",
+				"source_id": src.ID,
+				"error":     syncErr != nil,
+			})
+			b.Publish(string(payload))
 		}()
 
 		respond(w, http.StatusAccepted, map[string]string{"status": "sync queued"})

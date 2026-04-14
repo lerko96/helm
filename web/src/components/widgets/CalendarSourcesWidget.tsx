@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { CalendarSource } from '../../lib/types'
@@ -26,6 +26,26 @@ export default function CalendarSourcesWidget() {
   const { data, isLoading, error } = useSources()
 
   const [queuedIds, setQueuedIds] = useState<Set<number>>(new Set())
+  const prevSyncedAt = useRef<Record<number, string | null>>({})
+
+  useEffect(() => {
+    if (!data) return
+    const completed: number[] = []
+    for (const src of data) {
+      const prev = prevSyncedAt.current[src.id] ?? null
+      if (queuedIds.has(src.id) && src.last_synced_at !== prev) {
+        completed.push(src.id)
+      }
+      prevSyncedAt.current[src.id] = src.last_synced_at ?? null
+    }
+    if (completed.length > 0) {
+      setQueuedIds(prev => {
+        const s = new Set(prev)
+        completed.forEach(id => s.delete(id))
+        return s
+      })
+    }
+  }, [data, queuedIds])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')

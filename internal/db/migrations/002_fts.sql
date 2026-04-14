@@ -47,78 +47,108 @@ INSERT INTO clipboard_fts(rowid, title, content) SELECT id, title, content FROM 
 
 -- ── notes triggers ────────────────────────────────────────────────────────────
 
+-- +goose StatementBegin
 CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
     INSERT INTO notes_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN
     INSERT INTO notes_fts(notes_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content);
     INSERT INTO notes_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN
     INSERT INTO notes_fts(notes_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content);
 END;
+-- +goose StatementEnd
 
 -- ── todos triggers ────────────────────────────────────────────────────────────
 
+-- +goose StatementBegin
 CREATE TRIGGER todos_ai AFTER INSERT ON todos BEGIN
     INSERT INTO todos_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER todos_au AFTER UPDATE ON todos BEGIN
     INSERT INTO todos_fts(todos_fts, rowid, title, description) VALUES ('delete', old.id, old.title, old.description);
     INSERT INTO todos_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER todos_ad AFTER DELETE ON todos BEGIN
     INSERT INTO todos_fts(todos_fts, rowid, title, description) VALUES ('delete', old.id, old.title, old.description);
 END;
+-- +goose StatementEnd
 
 -- ── memos triggers ────────────────────────────────────────────────────────────
 
+-- +goose StatementBegin
 CREATE TRIGGER memos_ai AFTER INSERT ON memos BEGIN
     INSERT INTO memos_fts(rowid, content) VALUES (new.id, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER memos_au AFTER UPDATE ON memos BEGIN
     INSERT INTO memos_fts(memos_fts, rowid, content) VALUES ('delete', old.id, old.content);
     INSERT INTO memos_fts(rowid, content) VALUES (new.id, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER memos_ad AFTER DELETE ON memos BEGIN
     INSERT INTO memos_fts(memos_fts, rowid, content) VALUES ('delete', old.id, old.content);
 END;
+-- +goose StatementEnd
 
 -- ── bookmarks triggers ────────────────────────────────────────────────────────
 
+-- +goose StatementBegin
 CREATE TRIGGER bookmarks_ai AFTER INSERT ON bookmarks BEGIN
     INSERT INTO bookmarks_fts(rowid, title, url, description) VALUES (new.id, new.title, new.url, new.description);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER bookmarks_au AFTER UPDATE ON bookmarks BEGIN
     INSERT INTO bookmarks_fts(bookmarks_fts, rowid, title, url, description) VALUES ('delete', old.id, old.title, old.url, old.description);
     INSERT INTO bookmarks_fts(rowid, title, url, description) VALUES (new.id, new.title, new.url, new.description);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER bookmarks_ad AFTER DELETE ON bookmarks BEGIN
     INSERT INTO bookmarks_fts(bookmarks_fts, rowid, title, url, description) VALUES ('delete', old.id, old.title, old.url, old.description);
 END;
+-- +goose StatementEnd
 
 -- ── clipboard_items triggers ──────────────────────────────────────────────────
 
+-- +goose StatementBegin
 CREATE TRIGGER clipboard_ai AFTER INSERT ON clipboard_items BEGIN
     INSERT INTO clipboard_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER clipboard_au AFTER UPDATE ON clipboard_items BEGIN
     INSERT INTO clipboard_fts(clipboard_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content);
     INSERT INTO clipboard_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE TRIGGER clipboard_ad AFTER DELETE ON clipboard_items BEGIN
     INSERT INTO clipboard_fts(clipboard_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content);
 END;
+-- +goose StatementEnd
 
 -- +goose Down
 

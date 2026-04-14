@@ -82,7 +82,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Get("/api/calendar/sources", handlers.ListCalendarSources(db))
 		r.Post("/api/calendar/sources", handlers.CreateCalendarSource(db, cfg.Auth.Secret))
 		r.Delete("/api/calendar/sources/{id}", handlers.DeleteCalendarSource(db))
-		r.Post("/api/calendar/sources/{id}/sync", handlers.SyncCalendarSource(db))
+		r.Post("/api/calendar/sources/{id}/sync", handlers.SyncCalendarSource(db, cfg.Auth.Secret))
 
 		r.Get("/api/calendar/events", handlers.ListCalendarEvents(db))
 		r.Post("/api/calendar/events", handlers.CreateCalendarEvent(db))

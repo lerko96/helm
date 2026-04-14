@@ -1,14 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/lerko/helm/internal/api"
 	"github.com/lerko/helm/internal/broker"
+	"github.com/lerko/helm/internal/caldav"
 	"github.com/lerko/helm/internal/config"
 	"github.com/lerko/helm/internal/db"
 	"github.com/lerko/helm/internal/recurrence"
@@ -48,6 +51,9 @@ func main() {
 	stopRecurrence := recurrence.StartScheduler(database)
 	defer stopRecurrence()
 
+	stopCalDAV := startCalDAVScheduler(database, cfg.Auth.Secret)
+	defer stopCalDAV()
+
 	var uiFS fs.FS
 	if f, err := ui.FS(); err == nil {
 		uiFS = f
@@ -62,4 +68,53 @@ func main() {
 	if err := http.ListenAndServe(addr, router); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+// startCalDAVScheduler syncs all non-local calendar sources every 15 minutes.
+// Returns a cancel function.
+func startCalDAVScheduler(database *sql.DB, secret string) func() {
+	ticker := time.NewTicker(15 * time.Minute)
+	done := make(chan struct{})
+
+	syncAll := func() {
+		rows, err := database.Query(
+			`SELECT id, name, url, username, password_enc FROM calendar_sources WHERE is_local = 0`,
+		)
+		if err != nil {
+			log.Printf("caldav scheduler: query sources: %v", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var src caldav.CalendarSource
+			var urlStr, username, passwordEnc sql.NullString
+			if err := rows.Scan(&src.ID, &src.Name, &urlStr, &username, &passwordEnc); err != nil {
+				continue
+			}
+			src.URL = urlStr.String
+			src.Username = username.String
+			src.PasswordEnc = passwordEnc.String
+
+			go func(s caldav.CalendarSource) {
+				if err := caldav.SyncSource(database, s, secret); err != nil {
+					log.Printf("caldav scheduler: source %d: %v", s.ID, err)
+				}
+			}(src)
+		}
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				syncAll()
+			case <-done:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return func() { close(done) }
 }

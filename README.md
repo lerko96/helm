@@ -17,26 +17,48 @@ Layout is YAML-defined — multiple pages, multiple columns, widgets stacked per
 
 ---
 
-## Run
+## Deploy
 
 ```bash
 cp config.example.yml config.yml
-# set auth.password and auth.secret in config.yml
+# edit config.yml — set auth.password and auth.secret at minimum
+```
+
+```yaml
+# docker-compose.yml
+services:
+  helm:
+    image: ghcr.io/lerko96/helm:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yml:/config/config.yml:ro
+      - helm-data:/data
+    restart: unless-stopped
+
+volumes:
+  helm-data:
+```
+
+```bash
+docker compose up -d
+```
+
+Serves on `:8080`. Pin a release by replacing `latest` with a tag e.g. `2026.04.1`.
+
+---
+
+## Dev
+
+```bash
+cp config.example.yml config.yml
 
 # backend
 go run ./cmd/helm
 
-# frontend (dev)
+# frontend (HMR, proxies /api/* to :8080)
 cd web && npm run dev
 ```
-
-Docker:
-
-```bash
-docker compose up --build
-```
-
-Serves on `:8080` by default.
 
 ---
 

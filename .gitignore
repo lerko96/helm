@@ -1,11 +1,15 @@
 # Build output
-helm
+/helm
 web/dist
 web/node_modules
 
 # Runtime data (never commit)
 data/
-config.yml
+/config.yml
+
+# Temp
+tmp/
+*.log
 
 # Go
 *.test
@@ -14,14 +18,14 @@ vendor/
 
 # Node
 .npm
-.env
+.env*
 
 # Editor
 .idea/
 .vscode/
+.zed/
 *.swp
 .DS_Store
 
-# Notes
-ToDo.md
-CLAUDE.md
+# Local dev notes
+CONFIG_TEST_CHECKLIST.md

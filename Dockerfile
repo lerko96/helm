@@ -14,7 +14,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 # Copy source and embed the built frontend.
 COPY . .
-COPY --from=frontend /app/web/dist ./web/dist
+COPY --from=frontend /app/ui/dist ./ui/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o helm ./cmd/helm
 
 # ── Stage 3: Minimal runtime image ───────────────────────────────────────────

@@ -75,6 +75,8 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Get("/api/todos/{id}", handlers.GetTodo(db))
 		r.Put("/api/todos/{id}", handlers.UpdateTodo(db))
 		r.Delete("/api/todos/{id}", handlers.DeleteTodo(db))
+		r.Post("/api/todos/{id}/recurrences", handlers.CreateTodoRecurrence(db))
+		r.Delete("/api/todos/{id}/recurrences", handlers.DeleteTodoRecurrence(db))
 
 		// Calendar
 		r.Get("/api/calendar/sources", handlers.ListCalendarSources(db))

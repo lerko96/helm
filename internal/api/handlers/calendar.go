@@ -5,8 +5,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
+
+	"github.com/lerko/helm/internal/broker"
+	"github.com/lerko/helm/internal/caldav"
 )
 
 type CalendarSource struct {
@@ -132,26 +136,47 @@ func DeleteCalendarSource(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// SyncCalendarSource triggers a CalDAV sync for the given source.
-// Full CalDAV sync logic lives in internal/caldav — this handler just enqueues it.
-func SyncCalendarSource(db *sql.DB) http.HandlerFunc {
+// SyncCalendarSource triggers an immediate CalDAV sync for the given source in a goroutine.
+func SyncCalendarSource(db *sql.DB, secret string, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
 			respondError(w, http.StatusBadRequest, "invalid id")
 			return
 		}
-		// Placeholder: CalDAV sync will be implemented in internal/caldav.
-		// The source ID is validated here; the scheduler will call the sync service.
-		var count int
-		db.QueryRowContext(r.Context(), //nolint:errcheck
-			`SELECT COUNT(*) FROM calendar_sources WHERE id = ? AND user_id = ? AND is_local = 0`,
+
+		var src caldav.CalendarSource
+		var urlStr, username, passwordEnc sql.NullString
+		err = db.QueryRowContext(r.Context(),
+			`SELECT id, name, url, username, password_enc FROM calendar_sources WHERE id = ? AND user_id = ? AND is_local = 0`,
 			id, defaultUserID,
-		).Scan(&count)
-		if count == 0 {
+		).Scan(&src.ID, &src.Name, &urlStr, &username, &passwordEnc)
+		if err == sql.ErrNoRows {
 			respondError(w, http.StatusNotFound, "remote calendar source not found")
 			return
 		}
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "query failed")
+			return
+		}
+
+		src.URL = urlStr.String
+		src.Username = username.String
+		src.PasswordEnc = passwordEnc.String
+
+		go func() {
+			syncErr := caldav.SyncSource(db, src, secret)
+			if syncErr != nil {
+				log.Printf("caldav: manual sync source %d: %v", src.ID, syncErr)
+			}
+			payload, _ := json.Marshal(map[string]any{
+				"type":      "caldav_synced",
+				"source_id": src.ID,
+				"error":     syncErr != nil,
+			})
+			b.Publish(string(payload))
+		}()
+
 		respond(w, http.StatusAccepted, map[string]string{"status": "sync queued"})
 	}
 }

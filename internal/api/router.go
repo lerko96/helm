@@ -105,6 +105,12 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
 		r.Post("/api/memos", handlers.CreateMemo(db))
 		r.Put("/api/memos/{id}", handlers.UpdateMemo(db))
 		r.Delete("/api/memos/{id}", handlers.DeleteMemo(db))
+
+		// Attachments
+		r.Post("/api/attachments", handlers.UploadAttachment(db, cfg))
+		r.Get("/api/attachments", handlers.ListAttachments(db))
+		r.Get("/api/attachments/{id}/download", handlers.DownloadAttachment(db))
+		r.Delete("/api/attachments/{id}", handlers.DeleteAttachment(db))
 	})
 
 	// SPA catch-all: serve static files, fall back to index.html

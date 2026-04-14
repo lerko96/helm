@@ -84,6 +84,15 @@ export interface Bookmark {
   created_at: string
 }
 
+export interface Attachment {
+  id: number
+  filename: string
+  original_name: string
+  mime_type: string
+  size: number
+  created_at: string
+}
+
 export interface CalendarSource {
   id: number
   name: string

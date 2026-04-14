@@ -14,12 +14,13 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/lerko/helm/internal/api/handlers"
 	"github.com/lerko/helm/internal/api/middleware"
+	"github.com/lerko/helm/internal/broker"
 	"github.com/lerko/helm/internal/config"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
-func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
+func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.RequestID)
@@ -31,6 +32,9 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS) http.Handler {
 	r.With(middleware.LoginRateLimit).Post("/api/auth/login", handlers.Login(cfg))
 	r.Get("/s/{token}", handlers.GetSharedMemo(db))
 	r.Get("/api/config/pages", configPagesHandler(cfg))
+
+	// SSE — auth handled inline via ?token= (EventSource can't set headers)
+	r.Get("/api/events", handlers.SSEEvents(b, cfg.Auth.Secret))
 
 	// Protected API
 	r.Group(func(r chi.Router) {

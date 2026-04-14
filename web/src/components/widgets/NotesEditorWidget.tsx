@@ -6,6 +6,7 @@ import { useNotesStore } from '../../stores/notesStore'
 import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 import MarkdownRenderer from '../shared/MarkdownRenderer'
+import AttachmentList from '../shared/AttachmentList'
 
 function useNotes(folderId: number | null, query: string) {
   return useQuery({
@@ -109,22 +110,25 @@ function NoteEditor({ note }: { note: Note }) {
           <MarkdownRenderer content={content} />
         </div>
       ) : (
-        <textarea
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          onBlur={handleBlur}
-          style={{
-            width: '100%',
-            minHeight: '300px',
-            resize: 'none',
-            fontSize: 'var(--text-sm)',
-            lineHeight: '1.6',
-            padding: '12px',
-            border: 'none',
-            borderTop: '1px solid var(--color-border)',
-            background: 'var(--color-bg)',
-          }}
-        />
+        <>
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            onBlur={handleBlur}
+            style={{
+              width: '100%',
+              minHeight: '300px',
+              resize: 'none',
+              fontSize: 'var(--text-sm)',
+              lineHeight: '1.6',
+              padding: '12px',
+              border: 'none',
+              borderTop: '1px solid var(--color-border)',
+              background: 'var(--color-bg)',
+            }}
+          />
+          <AttachmentList entityType="note" entityId={note.id} />
+        </>
       )}
     </>
   )

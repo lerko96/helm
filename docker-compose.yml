@@ -1,14 +1,17 @@
 services:
   helm:
-    build: .
+    image: ghcr.io/lerko96/helm:latest  # pin a version: ghcr.io/lerko96/helm:2026.04.1
     container_name: helm
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
       # Persistent data: SQLite DB + uploaded attachments
-      - ./data:/data
-      # Config file mounted read-only
+      - helm-data:/data
+      # Copy config.example.yml → config.yml and edit before starting
       - ./config.yml:/config/config.yml:ro
     environment:
       - TZ=America/New_York
+
+volumes:
+  helm-data:

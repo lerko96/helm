@@ -133,3 +133,23 @@ pages:
 ```
 
 Column sizes: `small` (~25%), `medium` (~33%), `large` (~50%).
+
+---
+
+## Upgrading
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+Migrations run automatically on startup. Data persists in the `helm-data` named volume. No manual steps needed between releases.
+
+---
+
+## Health check
+
+`GET /healthz` returns `{"status":"ok"}` — use this for reverse proxy health probes (Caddy, nginx, Traefik).
+
+```
+GET /healthz → 200 {"status":"ok"}
+```

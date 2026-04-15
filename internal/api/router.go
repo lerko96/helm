@@ -28,6 +28,12 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 
+	// Health check — unauthenticated, for reverse proxies
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
 	// Public: auth + shared memo links + layout config
 	r.With(middleware.LoginRateLimit).Post("/api/auth/login", handlers.Login(cfg))
 	r.Get("/s/{token}", handlers.GetSharedMemo(db))

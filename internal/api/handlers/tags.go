@@ -132,6 +132,10 @@ func AttachTagHandler(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
+		if !validEntityType(req.EntityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
+			return
+		}
 		if err := AttachTag(db, req.EntityType, req.EntityID, tagID); err != nil {
 			respondError(w, http.StatusInternalServerError, "attach failed")
 			return
@@ -153,6 +157,10 @@ func DetachTagHandler(db *sql.DB) http.HandlerFunc {
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if !validEntityType(req.EntityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
 			return
 		}
 		if err := DetachTag(db, req.EntityType, req.EntityID, tagID); err != nil {

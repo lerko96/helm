@@ -4,10 +4,56 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/lerko/helm/internal/crypto"
 )
+
+var privateRanges = []net.IPNet{
+	parseCIDR("127.0.0.0/8"),
+	parseCIDR("10.0.0.0/8"),
+	parseCIDR("172.16.0.0/12"),
+	parseCIDR("192.168.0.0/16"),
+	parseCIDR("169.254.0.0/16"), // link-local
+	parseCIDR("::1/128"),        // IPv6 loopback
+	parseCIDR("fc00::/7"),       // IPv6 ULA
+}
+
+func parseCIDR(s string) net.IPNet {
+	_, n, _ := net.ParseCIDR(s)
+	return *n
+}
+
+// validateCalDAVURL rejects non-HTTPS schemes and URLs that resolve to
+// private/loopback addresses to prevent SSRF attacks.
+func validateCalDAVURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("caldav URL must use https (got %q)", u.Scheme)
+	}
+	host := u.Hostname()
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return fmt.Errorf("could not resolve host %q: %w", host, err)
+	}
+	for _, addr := range addrs {
+		ip := net.ParseIP(addr)
+		if ip == nil {
+			continue
+		}
+		for _, block := range privateRanges {
+			if block.Contains(ip) {
+				return fmt.Errorf("caldav URL resolves to private/loopback address (%s)", addr)
+			}
+		}
+	}
+	return nil
+}
 
 // CalendarSource mirrors the DB row fields needed for sync.
 type CalendarSource struct {
@@ -21,6 +67,10 @@ type CalendarSource struct {
 // SyncSource fetches events from a remote CalDAV source and upserts them into the DB.
 // It skips events whose etag is unchanged, and deletes DB events not present in the remote response.
 func SyncSource(db *sql.DB, source CalendarSource, secret string) error {
+	if err := validateCalDAVURL(source.URL); err != nil {
+		return fmt.Errorf("source %d URL rejected: %w", source.ID, err)
+	}
+
 	password := ""
 	if source.PasswordEnc != "" {
 		p, err := crypto.DecryptString(source.PasswordEnc, secret)

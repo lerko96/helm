@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -65,14 +67,33 @@ func (rl *rateLimiter) allow(ip string) bool {
 	return true
 }
 
+// realIP extracts the client IP from X-Real-IP or X-Forwarded-For when present,
+// falling back to RemoteAddr. Only use this when behind a trusted reverse proxy.
+func realIP(r *http.Request) string {
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return strings.TrimSpace(ip)
+	}
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		// First entry is the originating client
+		if idx := strings.IndexByte(fwd, ','); idx >= 0 {
+			return strings.TrimSpace(fwd[:idx])
+		}
+		return strings.TrimSpace(fwd)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
 // LoginRateLimit returns a middleware that limits to max attempts per window per IP.
 // Intended for use only on the login endpoint.
 var loginLimiter = newRateLimiter(10, time.Minute)
 
 func LoginRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if !loginLimiter.allow(ip) {
+		if !loginLimiter.allow(realIP(r)) {
 			http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
 			return
 		}

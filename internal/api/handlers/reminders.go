@@ -59,6 +59,10 @@ func CreateReminder(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusBadRequest, "entity_type and entity_id are required")
 			return
 		}
+		if !validEntityType(req.EntityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
+			return
+		}
 
 		res, err := db.ExecContext(r.Context(),
 			`INSERT INTO reminders (user_id, entity_type, entity_id, remind_at) VALUES (?, ?, ?, ?)`,

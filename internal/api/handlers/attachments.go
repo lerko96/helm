@@ -39,6 +39,10 @@ func UploadAttachment(db *sql.DB, cfg *config.Config) http.HandlerFunc {
 			respondError(w, http.StatusBadRequest, "entity_type and entity_id required")
 			return
 		}
+		if !validEntityType(entityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
+			return
+		}
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
@@ -130,6 +134,10 @@ func ListAttachments(db *sql.DB) http.HandlerFunc {
 		entityID := r.URL.Query().Get("entity_id")
 		if entityType == "" || entityID == "" {
 			respondError(w, http.StatusBadRequest, "entity_type and entity_id required")
+			return
+		}
+		if !validEntityType(entityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
 			return
 		}
 

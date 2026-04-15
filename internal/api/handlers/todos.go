@@ -155,7 +155,7 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 		}
 		if s := q.Get("q"); s != "" {
 			query += " AND t.id IN (SELECT rowid FROM todos_fts WHERE todos_fts MATCH ?)"
-			args = append(args, s+"*")
+			args = append(args, sanitizeFTSQuery(s))
 		}
 		query += " ORDER BY t.is_pinned DESC, t.due_date ASC NULLS LAST, t.updated_at DESC"
 

@@ -40,7 +40,7 @@ func ListMemos(db *sql.DB) http.HandlerFunc {
 		}
 		if s := q.Get("q"); s != "" {
 			query += " AND id IN (SELECT rowid FROM memos_fts WHERE memos_fts MATCH ?)"
-			args = append(args, s+"*")
+			args = append(args, sanitizeFTSQuery(s))
 		}
 		query += " ORDER BY is_pinned DESC, created_at DESC"
 

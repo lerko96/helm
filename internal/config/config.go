@@ -69,8 +69,8 @@ func Load(path string) (*Config, error) {
 	if cfg.Auth.Password == "" {
 		return nil, fmt.Errorf("auth.password must be set in config")
 	}
-	if cfg.Auth.Secret == "" {
-		return nil, fmt.Errorf("auth.secret must be set in config")
+	if len(cfg.Auth.Secret) < 32 {
+		return nil, fmt.Errorf("auth.secret must be at least 32 characters")
 	}
 
 	return cfg, nil

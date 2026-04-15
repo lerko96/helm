@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/lerko/helm/internal/api"
@@ -64,9 +68,25 @@ func main() {
 	router := api.NewRouter(cfg, database, uiFS, b)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("helm listening on http://%s", addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("server: %v", err)
+	srv := &http.Server{Addr: addr, Handler: router}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		log.Printf("helm listening on http://%s", addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	stop()
+	log.Println("helm shutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("server shutdown: %v", err)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/lerko/helm/internal/broker"
 )
 
 type Memo struct {
@@ -52,6 +53,7 @@ func ListMemos(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		memos := []Memo{}
+		ids := []int64{}
 		for rows.Next() {
 			var m Memo
 			if err := rows.Scan(&m.ID, &m.UserID, &m.Content, &m.Visibility, &m.ShareToken, &m.IsPinned, &m.CreatedAt, &m.UpdatedAt); err != nil {
@@ -59,12 +61,19 @@ func ListMemos(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			memos = append(memos, m)
+			ids = append(ids, m.ID)
+		}
+		tagMap := batchGetEntityTags(db, "memo", ids)
+		for i := range memos {
+			if tags, ok := tagMap[memos[i].ID]; ok {
+				memos[i].Tags = tags
+			}
 		}
 		respond(w, http.StatusOK, memos)
 	}
 }
 
-func CreateMemo(db *sql.DB) http.HandlerFunc {
+func CreateMemo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Content    string `json:"content"`
@@ -102,11 +111,12 @@ func CreateMemo(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		id, _ := res.LastInsertId()
+		publishMutation(b, "memo", "create")
 		respond(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }
 
-func UpdateMemo(db *sql.DB) http.HandlerFunc {
+func UpdateMemo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -158,11 +168,12 @@ func UpdateMemo(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "update failed")
 			return
 		}
+		publishMutation(b, "memo", "update")
 		respond(w, http.StatusNoContent, nil)
 	}
 }
 
-func DeleteMemo(db *sql.DB) http.HandlerFunc {
+func DeleteMemo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -175,6 +186,7 @@ func DeleteMemo(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
+		publishMutation(b, "memo", "delete")
 		respond(w, http.StatusNoContent, nil)
 	}
 }

@@ -40,7 +40,16 @@ func StartScheduler(db *sql.DB, b *broker.Broker) func() {
 }
 
 func fire(db *sql.DB, b *broker.Broker) {
-	rows, err := db.QueryContext(context.Background(), `
+	ctx := context.Background()
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		log.Printf("reminder scheduler: begin tx: %v", err)
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	rows, err := tx.QueryContext(ctx, `
 		SELECT id, entity_type, entity_id, remind_at
 		FROM reminders
 		WHERE is_sent = 0 AND remind_at <= CURRENT_TIMESTAMP
@@ -67,10 +76,18 @@ func fire(db *sql.DB, b *broker.Broker) {
 	rows.Close()
 
 	for _, r := range due {
-		if _, err := db.ExecContext(context.Background(), `UPDATE reminders SET is_sent = 1 WHERE id = ?`, r.p.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE reminders SET is_sent = 1 WHERE id = ?`, r.p.ID); err != nil {
 			log.Printf("reminder scheduler: mark sent %d: %v", r.p.ID, err)
-			continue
+			return
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("reminder scheduler: commit: %v", err)
+		return
+	}
+
+	for _, r := range due {
 		r.p.RemindAt = r.at.Format(time.RFC3339)
 		data, _ := json.Marshal(r.p)
 		b.Publish(string(data))

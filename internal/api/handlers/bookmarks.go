@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/lerko/helm/internal/broker"
 )
 
 type BookmarkCollection struct {
@@ -130,19 +132,27 @@ func ListBookmarks(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		bookmarks := []Bookmark{}
+		ids := []int64{}
 		for rows.Next() {
-			var b Bookmark
-			if err := rows.Scan(&b.ID, &b.UserID, &b.CollectionID, &b.URL, &b.Title, &b.Description, &b.FaviconURL, &b.IsPinned, &b.IsPublic, &b.CreatedAt, &b.UpdatedAt); err != nil {
+			var bm Bookmark
+			if err := rows.Scan(&bm.ID, &bm.UserID, &bm.CollectionID, &bm.URL, &bm.Title, &bm.Description, &bm.FaviconURL, &bm.IsPinned, &bm.IsPublic, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 				respondError(w, http.StatusInternalServerError, "scan failed")
 				return
 			}
-			bookmarks = append(bookmarks, b)
+			bookmarks = append(bookmarks, bm)
+			ids = append(ids, bm.ID)
+		}
+		tagMap := batchGetEntityTags(db, "bookmark", ids)
+		for i := range bookmarks {
+			if tags, ok := tagMap[bookmarks[i].ID]; ok {
+				bookmarks[i].Tags = tags
+			}
 		}
 		respond(w, http.StatusOK, bookmarks)
 	}
 }
 
-func CreateBookmark(db *sql.DB) http.HandlerFunc {
+func CreateBookmark(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			CollectionID *int64  `json:"collection_id"`
@@ -175,11 +185,12 @@ func CreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		id, _ := res.LastInsertId()
+		publishMutation(b, "bookmark", "create")
 		respond(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }
 
-func UpdateBookmark(db *sql.DB) http.HandlerFunc {
+func UpdateBookmark(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -210,11 +221,12 @@ func UpdateBookmark(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "update failed")
 			return
 		}
+		publishMutation(b, "bookmark", "update")
 		respond(w, http.StatusNoContent, nil)
 	}
 }
 
-func DeleteBookmark(db *sql.DB) http.HandlerFunc {
+func DeleteBookmark(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -227,6 +239,7 @@ func DeleteBookmark(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
+		publishMutation(b, "bookmark", "delete")
 		respond(w, http.StatusNoContent, nil)
 	}
 }

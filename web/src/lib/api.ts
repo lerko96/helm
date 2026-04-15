@@ -21,10 +21,15 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     return undefined as T
   }
 
-  const data = await res.json()
+  let data: Record<string, unknown>
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(`HTTP ${res.status}`)
+  }
 
   if (!res.ok) {
-    throw new Error(data.error ?? `HTTP ${res.status}`)
+    throw new Error((data.error as string) ?? `HTTP ${res.status}`)
   }
 
   return data as T

@@ -60,10 +60,10 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Delete("/api/note-folders/{id}", handlers.DeleteNoteFolder(db))
 
 		r.Get("/api/notes", handlers.ListNotes(db))
-		r.Post("/api/notes", handlers.CreateNote(db))
+		r.Post("/api/notes", handlers.CreateNote(db, b))
 		r.Get("/api/notes/{id}", handlers.GetNote(db))
-		r.Put("/api/notes/{id}", handlers.UpdateNote(db))
-		r.Delete("/api/notes/{id}", handlers.DeleteNote(db))
+		r.Put("/api/notes/{id}", handlers.UpdateNote(db, b))
+		r.Delete("/api/notes/{id}", handlers.DeleteNote(db, b))
 
 		// Todos
 		r.Get("/api/todo-lists", handlers.ListTodoLists(db))
@@ -71,10 +71,10 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Delete("/api/todo-lists/{id}", handlers.DeleteTodoList(db))
 
 		r.Get("/api/todos", handlers.ListTodos(db))
-		r.Post("/api/todos", handlers.CreateTodo(db))
+		r.Post("/api/todos", handlers.CreateTodo(db, b))
 		r.Get("/api/todos/{id}", handlers.GetTodo(db))
-		r.Put("/api/todos/{id}", handlers.UpdateTodo(db))
-		r.Delete("/api/todos/{id}", handlers.DeleteTodo(db))
+		r.Put("/api/todos/{id}", handlers.UpdateTodo(db, b))
+		r.Delete("/api/todos/{id}", handlers.DeleteTodo(db, b))
 		r.Post("/api/todos/{id}/recurrences", handlers.CreateTodoRecurrence(db))
 		r.Delete("/api/todos/{id}/recurrences", handlers.DeleteTodoRecurrence(db))
 
@@ -91,10 +91,10 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 
 		// Clipboard
 		r.Get("/api/clipboard", handlers.ListClipboardItems(db))
-		r.Post("/api/clipboard", handlers.CreateClipboardItem(db))
+		r.Post("/api/clipboard", handlers.CreateClipboardItem(db, b))
 		r.Get("/api/clipboard/{id}", handlers.GetClipboardItem(db))
-		r.Put("/api/clipboard/{id}", handlers.UpdateClipboardItem(db))
-		r.Delete("/api/clipboard/{id}", handlers.DeleteClipboardItem(db))
+		r.Put("/api/clipboard/{id}", handlers.UpdateClipboardItem(db, b))
+		r.Delete("/api/clipboard/{id}", handlers.DeleteClipboardItem(db, b))
 
 		// Bookmarks
 		r.Get("/api/bookmark-collections", handlers.ListBookmarkCollections(db))
@@ -102,15 +102,15 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Delete("/api/bookmark-collections/{id}", handlers.DeleteBookmarkCollection(db))
 
 		r.Get("/api/bookmarks", handlers.ListBookmarks(db))
-		r.Post("/api/bookmarks", handlers.CreateBookmark(db))
-		r.Put("/api/bookmarks/{id}", handlers.UpdateBookmark(db))
-		r.Delete("/api/bookmarks/{id}", handlers.DeleteBookmark(db))
+		r.Post("/api/bookmarks", handlers.CreateBookmark(db, b))
+		r.Put("/api/bookmarks/{id}", handlers.UpdateBookmark(db, b))
+		r.Delete("/api/bookmarks/{id}", handlers.DeleteBookmark(db, b))
 
 		// Memos
 		r.Get("/api/memos", handlers.ListMemos(db))
-		r.Post("/api/memos", handlers.CreateMemo(db))
-		r.Put("/api/memos/{id}", handlers.UpdateMemo(db))
-		r.Delete("/api/memos/{id}", handlers.DeleteMemo(db))
+		r.Post("/api/memos", handlers.CreateMemo(db, b))
+		r.Put("/api/memos/{id}", handlers.UpdateMemo(db, b))
+		r.Delete("/api/memos/{id}", handlers.DeleteMemo(db, b))
 
 		// Attachments
 		r.Post("/api/attachments", handlers.UploadAttachment(db, cfg))

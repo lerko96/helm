@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/lerko/helm/internal/broker"
 )
 
 // defaultUserID is used for all queries until multi-user is implemented.
@@ -25,4 +26,19 @@ func respondError(w http.ResponseWriter, status int, msg string) {
 
 func idParam(r *http.Request) (int64, error) {
 	return strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+}
+
+// publishMutation broadcasts a mutation event to all SSE clients.
+// entity_type: note, todo, memo, bookmark, clipboard
+// action: create, update, delete
+func publishMutation(b *broker.Broker, entityType, action string) {
+	if b == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"type":        "mutation",
+		"entity_type": entityType,
+		"action":      action,
+	})
+	b.Publish(string(payload))
 }

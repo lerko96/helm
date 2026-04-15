@@ -67,18 +67,20 @@ func spawnTodo(db *sql.DB, recurrenceID, parentID int64, rrule string, nextOcc t
 		return err
 	}
 
+	ctx := context.Background()
+
 	var (
 		listID      sql.NullInt64
 		title       string
 		description sql.NullString
 		priority    string
 	)
-	err = db.QueryRowContext(context.Background(),
+	err = db.QueryRowContext(ctx,
 		`SELECT list_id, title, description, priority FROM todos WHERE id = ?`, parentID,
 	).Scan(&listID, &title, &description, &priority)
 	if err == sql.ErrNoRows {
 		// Parent deleted — clean up the recurrence.
-		_, _ = db.ExecContext(context.Background(), `DELETE FROM todo_recurrences WHERE id = ?`, recurrenceID)
+		_, _ = db.ExecContext(ctx, `DELETE FROM todo_recurrences WHERE id = ?`, recurrenceID)
 		return nil
 	}
 	if err != nil {
@@ -94,7 +96,16 @@ func spawnTodo(db *sql.DB, recurrenceID, parentID int64, rrule string, nextOcc t
 		descVal = &description.String
 	}
 
-	if _, err = db.ExecContext(context.Background(), `
+	next := Advance(nextOcc, freq, interval)
+
+	// INSERT + UPDATE in a single transaction to prevent duplicate todos on crash/restart.
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if _, err = tx.ExecContext(ctx, `
 		INSERT INTO todos (user_id, list_id, title, description, status, priority, due_date)
 		VALUES (1, ?, ?, ?, 'not_started', ?, ?)`,
 		listIDVal, title, descVal, priority, nextOcc,
@@ -102,9 +113,11 @@ func spawnTodo(db *sql.DB, recurrenceID, parentID int64, rrule string, nextOcc t
 		return err
 	}
 
-	next := Advance(nextOcc, freq, interval)
-	_, err = db.ExecContext(context.Background(),
+	if _, err = tx.ExecContext(ctx,
 		`UPDATE todo_recurrences SET next_occurrence = ? WHERE id = ?`, next, recurrenceID,
-	)
-	return err
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

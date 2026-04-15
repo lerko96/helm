@@ -4,7 +4,7 @@ import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
 import { isAuthenticated, clearToken } from './lib/auth'
 import { apiFetch } from './lib/api'
-import { startSSE, type ReminderEvent, type CaldavSyncedEvent } from './lib/sse'
+import { startSSE, type ReminderEvent, type CaldavSyncedEvent, type MutationEvent } from './lib/sse'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
 import ClipboardWidget from './components/widgets/ClipboardWidget'
@@ -78,6 +78,21 @@ export default function App() {
     queryClient.invalidateQueries({ queryKey: ['calendar-sources'] })
   }, [])
 
+  const onMutation = useCallback((e: MutationEvent) => {
+    // Map entity_type to query key prefix used by each widget
+    const keyMap: Record<string, string> = {
+      note: 'notes',
+      todo: 'todos',
+      memo: 'memos',
+      bookmark: 'bookmarks',
+      clipboard: 'clipboard',
+    }
+    const key = keyMap[e.entity_type]
+    if (key) {
+      queryClient.invalidateQueries({ queryKey: [key] })
+    }
+  }, [])
+
   useEffect(() => {
     if (!authed) return
     apiFetch<Page[]>('/api/config/pages')
@@ -87,9 +102,9 @@ export default function App() {
 
   useEffect(() => {
     if (!authed) return
-    const stop = startSSE({ onReminder, onCaldavSynced })
+    const stop = startSSE({ onReminder, onCaldavSynced, onMutation })
     return stop
-  }, [authed, onReminder, onCaldavSynced])
+  }, [authed, onReminder, onCaldavSynced, onMutation])
 
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />

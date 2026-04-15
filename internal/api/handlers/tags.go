@@ -3,8 +3,10 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -132,6 +134,10 @@ func AttachTagHandler(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
+		if !validEntityType(req.EntityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
+			return
+		}
 		if err := AttachTag(db, req.EntityType, req.EntityID, tagID); err != nil {
 			respondError(w, http.StatusInternalServerError, "attach failed")
 			return
@@ -153,6 +159,10 @@ func DetachTagHandler(db *sql.DB) http.HandlerFunc {
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if !validEntityType(req.EntityType) {
+			respondError(w, http.StatusBadRequest, "invalid entity_type")
 			return
 		}
 		if err := DetachTag(db, req.EntityType, req.EntityID, tagID); err != nil {
@@ -179,6 +189,42 @@ func DetachTag(db *sql.DB, entityType string, entityID, tagID int64) error {
 		tagID, entityType, entityID,
 	)
 	return err
+}
+
+// batchGetEntityTags fetches tags for multiple entity IDs in a single query.
+// Returns a map of entityID → []Tag.
+func batchGetEntityTags(db *sql.DB, entityType string, ids []int64) map[int64][]Tag {
+	result := make(map[int64][]Tag, len(ids))
+	if len(ids) == 0 {
+		return result
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, entityType)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	q := fmt.Sprintf(`
+		SELECT et.entity_id, t.id, t.user_id, t.name, t.color, t.created_at
+		FROM tags t
+		JOIN entity_tags et ON et.tag_id = t.id
+		WHERE et.entity_type = ? AND et.entity_id IN (%s)
+		ORDER BY t.name`, strings.Join(placeholders, ","))
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var entityID int64
+		var t Tag
+		if err := rows.Scan(&entityID, &t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt); err != nil {
+			continue
+		}
+		result[entityID] = append(result[entityID], t)
+	}
+	return result
 }
 
 func GetEntityTags(db *sql.DB, entityType string, entityID int64) ([]Tag, error) {

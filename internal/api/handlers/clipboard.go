@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/lerko/helm/internal/broker"
 )
 
 type ClipboardItem struct {
@@ -36,7 +38,7 @@ func ListClipboardItems(db *sql.DB) http.HandlerFunc {
 		}
 		if s := q.Get("q"); s != "" {
 			query += " AND id IN (SELECT rowid FROM clipboard_fts WHERE clipboard_fts MATCH ?)"
-			args = append(args, s+"*")
+			args = append(args, sanitizeFTSQuery(s))
 		}
 		query += " ORDER BY is_pinned DESC, created_at DESC"
 
@@ -48,6 +50,7 @@ func ListClipboardItems(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		items := []ClipboardItem{}
+		ids := []int64{}
 		for rows.Next() {
 			var item ClipboardItem
 			if err := rows.Scan(&item.ID, &item.UserID, &item.Title, &item.Content, &item.Language, &item.IsPinned, &item.CreatedAt, &item.UpdatedAt); err != nil {
@@ -55,6 +58,13 @@ func ListClipboardItems(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			items = append(items, item)
+			ids = append(ids, item.ID)
+		}
+		tagMap := batchGetEntityTags(db, "clipboard", ids)
+		for i := range items {
+			if tags, ok := tagMap[items[i].ID]; ok {
+				items[i].Tags = tags
+			}
 		}
 		respond(w, http.StatusOK, items)
 	}
@@ -87,7 +97,7 @@ func GetClipboardItem(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func CreateClipboardItem(db *sql.DB) http.HandlerFunc {
+func CreateClipboardItem(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Title    *string `json:"title"`
@@ -113,11 +123,12 @@ func CreateClipboardItem(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		id, _ := res.LastInsertId()
+		publishMutation(b, "clipboard", "create")
 		respond(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }
 
-func UpdateClipboardItem(db *sql.DB) http.HandlerFunc {
+func UpdateClipboardItem(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -145,11 +156,12 @@ func UpdateClipboardItem(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "update failed")
 			return
 		}
+		publishMutation(b, "clipboard", "update")
 		respond(w, http.StatusNoContent, nil)
 	}
 }
 
-func DeleteClipboardItem(db *sql.DB) http.HandlerFunc {
+func DeleteClipboardItem(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -162,6 +174,7 @@ func DeleteClipboardItem(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
+		publishMutation(b, "clipboard", "delete")
 		respond(w, http.StatusNoContent, nil)
 	}
 }

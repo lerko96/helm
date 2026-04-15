@@ -3,9 +3,12 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/lerko/helm/internal/broker"
 	"github.com/lerko/helm/internal/recurrence"
 )
 
@@ -155,7 +158,7 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 		}
 		if s := q.Get("q"); s != "" {
 			query += " AND t.id IN (SELECT rowid FROM todos_fts WHERE todos_fts MATCH ?)"
-			args = append(args, s+"*")
+			args = append(args, sanitizeFTSQuery(s))
 		}
 		query += " ORDER BY t.is_pinned DESC, t.due_date ASC NULLS LAST, t.updated_at DESC"
 
@@ -167,6 +170,7 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		todos := []Todo{}
+		ids := []int64{}
 		for rows.Next() {
 			var t Todo
 			if err := rows.Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt, &t.HasRecurrence, &t.RecurrenceRRule); err != nil {
@@ -174,6 +178,17 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			todos = append(todos, t)
+			ids = append(ids, t.ID)
+		}
+		tagMap := batchGetEntityTags(db, "todo", ids)
+		subtaskMap := batchGetSubtasks(db, ids)
+		for i := range todos {
+			if tags, ok := tagMap[todos[i].ID]; ok {
+				todos[i].Tags = tags
+			}
+			if subtasks, ok := subtaskMap[todos[i].ID]; ok {
+				todos[i].Subtasks = subtasks
+			}
 		}
 		respond(w, http.StatusOK, todos)
 	}
@@ -230,7 +245,39 @@ func fetchSubtasks(db *sql.DB, parentID int64) []Todo {
 	return subtasks
 }
 
-func CreateTodo(db *sql.DB) http.HandlerFunc {
+// batchGetSubtasks fetches subtasks for multiple parent IDs in a single query.
+func batchGetSubtasks(db *sql.DB, parentIDs []int64) map[int64][]Todo {
+	result := make(map[int64][]Todo, len(parentIDs))
+	if len(parentIDs) == 0 {
+		return result
+	}
+	placeholders := make([]string, len(parentIDs))
+	args := make([]any, len(parentIDs))
+	for i, id := range parentIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	q := fmt.Sprintf(`
+		SELECT id, user_id, list_id, parent_id, title, description, status, priority, due_date, is_pinned, created_at, updated_at
+		FROM todos WHERE parent_id IN (%s) ORDER BY created_at ASC`, strings.Join(placeholders, ","))
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var t Todo
+		if err := rows.Scan(&t.ID, &t.UserID, &t.ListID, &t.ParentID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.DueDate, &t.IsPinned, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			continue
+		}
+		if t.ParentID != nil {
+			result[*t.ParentID] = append(result[*t.ParentID], t)
+		}
+	}
+	return result
+}
+
+func CreateTodo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ListID      *int64  `json:"list_id"`
@@ -282,11 +329,12 @@ func CreateTodo(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		id, _ := res.LastInsertId()
+		publishMutation(b, "todo", "create")
 		respond(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }
 
-func UpdateTodo(db *sql.DB) http.HandlerFunc {
+func UpdateTodo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -322,11 +370,12 @@ func UpdateTodo(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "update failed")
 			return
 		}
+		publishMutation(b, "todo", "update")
 		respond(w, http.StatusNoContent, nil)
 	}
 }
 
-func DeleteTodo(db *sql.DB) http.HandlerFunc {
+func DeleteTodo(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -339,6 +388,7 @@ func DeleteTodo(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
+		publishMutation(b, "todo", "delete")
 		respond(w, http.StatusNoContent, nil)
 	}
 }

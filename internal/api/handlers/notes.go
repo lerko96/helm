@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/lerko/helm/internal/broker"
 )
 
 type NoteFolder struct {
@@ -116,7 +118,7 @@ func ListNotes(db *sql.DB) http.HandlerFunc {
 		}
 		if s := q.Get("q"); s != "" {
 			query += " AND id IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)"
-			args = append(args, s+"*")
+			args = append(args, sanitizeFTSQuery(s))
 		}
 		query += " ORDER BY is_pinned DESC, updated_at DESC"
 
@@ -128,6 +130,7 @@ func ListNotes(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		notes := []Note{}
+		ids := []int64{}
 		for rows.Next() {
 			var n Note
 			if err := rows.Scan(&n.ID, &n.UserID, &n.FolderID, &n.Title, &n.Content, &n.IsPinned, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
@@ -135,6 +138,13 @@ func ListNotes(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			notes = append(notes, n)
+			ids = append(ids, n.ID)
+		}
+		tagMap := batchGetEntityTags(db, "note", ids)
+		for i := range notes {
+			if tags, ok := tagMap[notes[i].ID]; ok {
+				notes[i].Tags = tags
+			}
 		}
 		respond(w, http.StatusOK, notes)
 	}
@@ -167,7 +177,7 @@ func GetNote(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func CreateNote(db *sql.DB) http.HandlerFunc {
+func CreateNote(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			FolderID *int64     `json:"folder_id"`
@@ -191,11 +201,12 @@ func CreateNote(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		id, _ := res.LastInsertId()
+		publishMutation(b, "note", "create")
 		respond(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }
 
-func UpdateNote(db *sql.DB) http.HandlerFunc {
+func UpdateNote(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -224,11 +235,12 @@ func UpdateNote(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "update failed")
 			return
 		}
+		publishMutation(b, "note", "update")
 		respond(w, http.StatusNoContent, nil)
 	}
 }
 
-func DeleteNote(db *sql.DB) http.HandlerFunc {
+func DeleteNote(db *sql.DB, b *broker.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := idParam(r)
 		if err != nil {
@@ -241,6 +253,7 @@ func DeleteNote(db *sql.DB) http.HandlerFunc {
 			respondError(w, http.StatusInternalServerError, "delete failed")
 			return
 		}
+		publishMutation(b, "note", "delete")
 		respond(w, http.StatusNoContent, nil)
 	}
 }

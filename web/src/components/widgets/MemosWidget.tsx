@@ -5,6 +5,7 @@ import type { Memo } from '../../lib/types'
 import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
 import MarkdownRenderer from '../shared/MarkdownRenderer'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useMemos(query: string) {
   return useQuery({
@@ -89,7 +90,7 @@ export default function MemosWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '48px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '48px' }} />
         ))}
       </div>
     )
@@ -195,15 +196,7 @@ export default function MemosWidget() {
                 >
                   {memo.visibility === 'public' ? '◉' : '○'}
                 </button>
-                <button
-                  onClick={() => del.mutate(memo.id)}
-                  disabled={del.isPending}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '10px', padding: '2px 4px', cursor: 'pointer', lineHeight: 1 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-                >
-                  ×
-                </button>
+                <ConfirmButton onConfirm={() => del.mutate(memo.id)} disabled={del.isPending} style={{ padding: '2px 4px', fontSize: '10px' }} />
               </div>
             </div>
           ))

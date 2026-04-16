@@ -146,7 +146,7 @@ export default function NotesEditorWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '32px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '32px' }} />
         ))}
       </div>
     )
@@ -234,7 +234,7 @@ export default function NotesEditorWidget() {
             disabled={!draft.trim() || createNote.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
           >
-            +
+            {createNote.isPending ? '…' : '+'}
           </button>
         </div>
       </div>

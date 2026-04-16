@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { TodoList, Todo } from '../../lib/types'
 import { useTasksStore } from '../../stores/tasksStore'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useTodoLists() {
   return useQuery({
@@ -51,7 +52,7 @@ export default function TaskListsWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '32px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '32px' }} />
         ))}
       </div>
     )
@@ -133,15 +134,7 @@ export default function TaskListsWidget() {
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)' }}>
               {countForList(list.id)}
             </span>
-            <button
-              onClick={e => { e.stopPropagation(); del.mutate(list.id) }}
-              disabled={del.isPending}
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 2px', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-            >
-              ×
-            </button>
+            <ConfirmButton onConfirm={() => del.mutate(list.id)} disabled={del.isPending} style={{ padding: '0 2px' }} />
           </div>
         )
       })}
@@ -168,7 +161,7 @@ export default function TaskListsWidget() {
           disabled={!nameDraft.trim() || create.isPending}
           style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
         >
-          +
+          {create.isPending ? '…' : '+'}
         </button>
       </div>
     </div>

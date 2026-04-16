@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { CalendarSource } from '../../lib/types'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useSources() {
   return useQuery({
@@ -25,27 +26,18 @@ export default function CalendarSourcesWidget() {
   const qc = useQueryClient()
   const { data, isLoading, error } = useSources()
 
-  const [queuedIds, setQueuedIds] = useState<Set<number>>(new Set())
-  const prevSyncedAt = useRef<Record<number, string | null>>({})
-
-  useEffect(() => {
-    if (!data) return
-    const completed: number[] = []
-    for (const src of data) {
-      const prev = prevSyncedAt.current[src.id] ?? null
-      if (queuedIds.has(src.id) && src.last_synced_at !== prev) {
-        completed.push(src.id)
-      }
-      prevSyncedAt.current[src.id] = src.last_synced_at ?? null
-    }
-    if (completed.length > 0) {
-      setQueuedIds(prev => {
-        const s = new Set(prev)
-        completed.forEach(id => s.delete(id))
-        return s
-      })
-    }
-  }, [data, queuedIds])
+  const [syncBaseline, setSyncBaseline] = useState<Record<number, string | null>>({})
+  const queuedIds = useMemo(() => {
+    if (!data) return new Set(Object.keys(syncBaseline).map(Number))
+    return new Set(
+      (Object.entries(syncBaseline) as [string, string | null][])
+        .filter(([id, baseline]) => {
+          const src = data.find(s => s.id === Number(id))
+          return !src || src.last_synced_at === baseline
+        })
+        .map(([id]) => Number(id))
+    )
+  }, [data, syncBaseline])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -58,8 +50,15 @@ export default function CalendarSourcesWidget() {
   const syncSource = useMutation({
     mutationFn: (id: number) =>
       apiFetch(`/api/calendar/sources/${id}/sync`, { method: 'POST' }),
-    onMutate: (id) => setQueuedIds(prev => new Set(prev).add(id)),
-    onError: (_e, id) => setQueuedIds(prev => { const s = new Set(prev); s.delete(id); return s }),
+    onMutate: (id) => {
+      const src = data?.find(s => s.id === id)
+      setSyncBaseline(prev => ({ ...prev, [id]: src?.last_synced_at ?? null }))
+    },
+    onSuccess: (_data, id) => {
+      setSyncBaseline(prev => { const s = { ...prev }; delete s[id]; return s })
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+    },
+    onError: (_err, id) => setSyncBaseline(prev => { const s = { ...prev }; delete s[id]; return s }),
   })
 
   const deleteSource = useMutation({
@@ -254,7 +253,7 @@ export default function CalendarSourcesWidget() {
       {isLoading && (
         <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
           {[0, 1].map(i => (
-            <div key={i} style={{ height: '40px', background: 'var(--color-surface-raised)' }} />
+            <div key={i} className="skeleton" style={{ height: '40px' }} />
           ))}
         </div>
       )}
@@ -340,23 +339,11 @@ export default function CalendarSourcesWidget() {
           )}
 
           {/* Delete */}
-          <button
-            onClick={() => deleteSource.mutate(src.id)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text-dim)',
-              padding: '0 2px',
-              fontFamily: 'var(--font-mono)',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-          >
-            ×
-          </button>
+          <ConfirmButton
+            onConfirm={() => deleteSource.mutate(src.id)}
+            disabled={deleteSource.isPending}
+            style={{ padding: '0 2px', flexShrink: 0, fontSize: 'var(--text-sm)' }}
+          />
         </div>
       ))}
     </div>

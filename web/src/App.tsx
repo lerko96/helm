@@ -4,7 +4,7 @@ import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
 import { isAuthenticated, clearToken } from './lib/auth'
 import { apiFetch } from './lib/api'
-import { startSSE, type ReminderEvent, type CaldavSyncedEvent, type MutationEvent } from './lib/sse'
+import { startSSE, type ReminderEvent, type MutationEvent } from './lib/sse'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
 import ClipboardWidget from './components/widgets/ClipboardWidget'
@@ -73,7 +73,7 @@ export default function App() {
     }
   }, [showBanner])
 
-  const onCaldavSynced = useCallback((_e: CaldavSyncedEvent) => {
+  const onCaldavSynced = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
     queryClient.invalidateQueries({ queryKey: ['calendar-sources'] })
   }, [])

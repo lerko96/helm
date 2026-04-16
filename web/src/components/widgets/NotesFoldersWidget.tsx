@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { NoteFolder } from '../../lib/types'
 import { useNotesStore } from '../../stores/notesStore'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useNoteFolders() {
   return useQuery({
@@ -42,7 +43,7 @@ export default function NotesFoldersWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '32px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '32px' }} />
         ))}
       </div>
     )
@@ -91,15 +92,7 @@ export default function NotesFoldersWidget() {
           >
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-dim)' }}>{active ? '▶' : '▷'}</span>
             <span style={{ flex: 1 }}>{folder.name}</span>
-            <button
-              onClick={e => { e.stopPropagation(); del.mutate(folder.id) }}
-              disabled={del.isPending}
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 2px', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-            >
-              ×
-            </button>
+            <ConfirmButton onConfirm={() => del.mutate(folder.id)} disabled={del.isPending} style={{ padding: '0 2px' }} />
           </div>
         )
       })}
@@ -119,7 +112,7 @@ export default function NotesFoldersWidget() {
           disabled={!draft.trim() || create.isPending}
           style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
         >
-          +
+          {create.isPending ? '…' : '+'}
         </button>
       </div>
     </div>

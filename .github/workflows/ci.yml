@@ -18,6 +18,8 @@ jobs:
           go-version-file: go.mod
       - run: go build ./...
       - run: go vet ./...
+      - run: go test ./... -race -count=1
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
 
   frontend:
     name: Frontend build
@@ -30,6 +32,8 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+        working-directory: web
+      - run: npm run lint
         working-directory: web
       - run: npm run build
         working-directory: web

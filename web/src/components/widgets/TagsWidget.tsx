@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Tag } from '../../lib/types'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useTags() {
   return useQuery({
@@ -49,7 +50,7 @@ export default function TagsWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '28px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '28px' }} />
         ))}
       </div>
     )
@@ -80,15 +81,7 @@ export default function TagsWidget() {
         >
           <span style={{ width: '10px', height: '10px', background: tag.color, flexShrink: 0, display: 'inline-block' }} />
           <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{tag.name}</span>
-          <button
-            onClick={() => del.mutate(tag.id)}
-            disabled={del.isPending}
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-          >
-            ×
-          </button>
+          <ConfirmButton onConfirm={() => del.mutate(tag.id)} disabled={del.isPending} />
         </div>
       ))}
 
@@ -116,7 +109,7 @@ export default function TagsWidget() {
           disabled={!nameDraft.trim() || create.isPending}
           style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
         >
-          +
+          {create.isPending ? '…' : '+'}
         </button>
       </div>
     </div>

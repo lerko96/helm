@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Note } from '../../lib/types'
@@ -70,15 +70,6 @@ function NoteEditor({ note }: { note: Note }) {
   const [viewMode, setViewMode] = useState(false)
   const update = useUpdateNote()
 
-  useEffect(() => {
-    setContent(note.content ?? '')
-    setViewMode(false)
-  }, [note.id])
-
-  useEffect(() => {
-    if (!viewMode) setContent(note.content ?? '')
-  }, [note.content])
-
   function handleBlur() {
     if (content !== (note.content ?? '')) {
       update.mutate({ id: note.id, content })
@@ -146,7 +137,7 @@ export default function NotesEditorWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '32px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '32px' }} />
         ))}
       </div>
     )
@@ -234,7 +225,7 @@ export default function NotesEditorWidget() {
             disabled={!draft.trim() || createNote.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
           >
-            +
+            {createNote.isPending ? '…' : '+'}
           </button>
         </div>
       </div>
@@ -245,7 +236,7 @@ export default function NotesEditorWidget() {
           <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border)' }}>
             <TagPicker entityType="note" entityId={activeNote.id} />
           </div>
-          <NoteEditor note={activeNote} />
+          <NoteEditor key={activeNote.id} note={activeNote} />
         </>
       )}
 

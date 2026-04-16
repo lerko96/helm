@@ -293,7 +293,7 @@ export default function CalendarWidget() {
       {isLoading && (
         <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
           {[0, 1, 2].map(i => (
-            <div key={i} style={{ height: '48px', background: 'var(--color-surface-raised)' }} />
+            <div key={i} className="skeleton" style={{ height: '48px' }} />
           ))}
         </div>
       )}

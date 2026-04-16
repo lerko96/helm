@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/api'
 import type { Bookmark, BookmarkCollection } from '../../lib/types'
 import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useBookmarks(collectionId: number | null, query: string) {
   return useQuery({
@@ -167,7 +168,7 @@ export default function BookmarksWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '36px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '36px' }} />
         ))}
       </div>
     )
@@ -220,14 +221,7 @@ export default function BookmarksWidget() {
           {allCollections.map(c => (
             <div key={c.id} className="flex items-center gap-2" style={{ padding: '3px 0' }}>
               <span style={{ flex: 1, fontSize: 'var(--text-xs)', color: 'var(--color-text-label)' }}>{c.name}</span>
-              <button
-                onClick={() => deleteCollection.mutate(c.id)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '10px', padding: '0 4px', cursor: 'pointer' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-              >
-                ×
-              </button>
+              <ConfirmButton onConfirm={() => deleteCollection.mutate(c.id)} disabled={deleteCollection.isPending} style={{ fontSize: '10px', padding: '0 4px' }} />
             </div>
           ))}
           <div className="flex gap-2" style={{ marginTop: '6px' }}>
@@ -308,7 +302,7 @@ export default function BookmarksWidget() {
                     disabled={!editDraft.url.trim() || update.isPending}
                     style={{ fontSize: 'var(--text-xs)', padding: '4px 8px' }}
                   >
-                    save
+                    {update.isPending ? 'saving…' : 'save'}
                   </button>
                   <button
                     className="btn-ghost"
@@ -387,15 +381,7 @@ export default function BookmarksWidget() {
             >
               ✎
             </button>
-            <button
-              onClick={() => del.mutate(bm.id)}
-              disabled={del.isPending}
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer', flexShrink: 0 }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-            >
-              ×
-            </button>
+            <ConfirmButton onConfirm={() => del.mutate(bm.id)} disabled={del.isPending} style={{ flexShrink: 0 }} />
           </div>
         )
       })}
@@ -428,7 +414,7 @@ export default function BookmarksWidget() {
             disabled={!urlDraft.trim() || create.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
           >
-            +
+            {create.isPending ? '…' : '+'}
           </button>
         </div>
       </div>

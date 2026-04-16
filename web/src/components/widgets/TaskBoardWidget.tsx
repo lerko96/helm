@@ -5,6 +5,7 @@ import type { Todo } from '../../lib/types'
 import { useTasksStore } from '../../stores/tasksStore'
 import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
+import ConfirmButton from '../shared/ConfirmButton'
 
 const STATUS_ORDER: Todo['status'][] = ['not_started', 'in_progress', 'done']
 const STATUS_LABELS: Record<Todo['status'], string> = {
@@ -333,14 +334,7 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
             >
               {sub.title}
             </span>
-            <button
-              onClick={() => del.mutate(sub.id)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-            >
-              ×
-            </button>
+            <ConfirmButton onConfirm={() => del.mutate(sub.id)} disabled={del.isPending} />
           </div>
         ))}
 
@@ -360,7 +354,7 @@ function DetailPanel({ todo, listId }: DetailPanelProps) {
             disabled={!subtaskDraft.trim() || create.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '4px 8px' }}
           >
-            +
+            {create.isPending ? '…' : '+'}
           </button>
         </div>
       </div>
@@ -386,7 +380,7 @@ export default function TaskBoardWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '32px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '32px' }} />
         ))}
       </div>
     )
@@ -576,14 +570,7 @@ export default function TaskBoardWidget() {
                       {expanded ? '▲' : '▼'}
                     </button>
 
-                    <button
-                      onClick={e => { e.stopPropagation(); del.mutate(todo.id) }}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-                    >
-                      ×
-                    </button>
+                    <ConfirmButton onConfirm={() => del.mutate(todo.id)} disabled={del.isPending} />
                   </div>
 
                   {/* Detail panel */}
@@ -624,7 +611,7 @@ export default function TaskBoardWidget() {
             disabled={!draft.trim() || create.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
           >
-            +
+            {create.isPending ? '…' : '+'}
           </button>
         </div>
         {showDate && (

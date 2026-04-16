@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/api'
 import type { ClipboardItem } from '../../lib/types'
 import { useSearchStore } from '../../stores/searchStore'
 import TagPicker from '../shared/TagPicker'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useClipboard(query: string) {
   return useQuery({
@@ -93,7 +94,7 @@ export default function ClipboardWidget() {
     return (
       <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ height: '36px', background: 'var(--color-surface-raised)' }} />
+          <div key={i} className="skeleton" style={{ height: '36px' }} />
         ))}
       </div>
     )
@@ -159,15 +160,7 @@ export default function ClipboardWidget() {
             >
               ✎
             </button>
-            <button
-              onClick={() => del.mutate(item.id)}
-              disabled={del.isPending}
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-dim)', fontSize: '12px', padding: '0 4px', cursor: 'pointer', flexShrink: 0 }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-            >
-              ×
-            </button>
+            <ConfirmButton onConfirm={() => del.mutate(item.id)} disabled={del.isPending} style={{ flexShrink: 0 }} />
           </div>
           {item.language && (
             <pre
@@ -216,7 +209,7 @@ export default function ClipboardWidget() {
             disabled={!draft.trim() || create.isPending}
             style={{ fontSize: 'var(--text-xs)', padding: '6px 10px' }}
           >
-            +
+            {create.isPending ? '…' : '+'}
           </button>
         </div>
         {showExtra && (

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { CalendarSource } from '../../lib/types'
+import ConfirmButton from '../shared/ConfirmButton'
 
 function useSources() {
   return useQuery({
@@ -254,7 +255,7 @@ export default function CalendarSourcesWidget() {
       {isLoading && (
         <div className="flex flex-col gap-2" style={{ padding: '12px' }}>
           {[0, 1].map(i => (
-            <div key={i} style={{ height: '40px', background: 'var(--color-surface-raised)' }} />
+            <div key={i} className="skeleton" style={{ height: '40px' }} />
           ))}
         </div>
       )}
@@ -340,23 +341,11 @@ export default function CalendarSourcesWidget() {
           )}
 
           {/* Delete */}
-          <button
-            onClick={() => deleteSource.mutate(src.id)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text-dim)',
-              padding: '0 2px',
-              fontFamily: 'var(--font-mono)',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-red)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-dim)')}
-          >
-            ×
-          </button>
+          <ConfirmButton
+            onConfirm={() => deleteSource.mutate(src.id)}
+            disabled={deleteSource.isPending}
+            style={{ padding: '0 2px', flexShrink: 0, fontSize: 'var(--text-sm)' }}
+          />
         </div>
       ))}
     </div>

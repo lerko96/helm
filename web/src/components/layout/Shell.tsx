@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchStore } from '../../stores/searchStore'
+import ErrorBoundary from '../shared/ErrorBoundary'
 
 export interface Page {
   id: string
@@ -159,7 +160,9 @@ function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetCom
         <span style={{ color: 'var(--color-border-bright)', fontSize: '10px' }}>—</span>
       </div>
       <div style={{ background: 'var(--color-bg)', minHeight: '80px' }}>
-        {Component ? <Component /> : widget.content ?? <EmptyWidget />}
+        <ErrorBoundary widgetTitle={widget.title}>
+          {Component ? <Component /> : widget.content ?? <EmptyWidget />}
+        </ErrorBoundary>
       </div>
     </div>
   )

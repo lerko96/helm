@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { Note } from '../../lib/types'
@@ -68,16 +68,13 @@ function useCreateNote(folderId: number | null) {
 function NoteEditor({ note }: { note: Note }) {
   const [content, setContent] = useState(note.content ?? '')
   const [viewMode, setViewMode] = useState(false)
+  const [syncedContent, setSyncedContent] = useState(note.content ?? '')
   const update = useUpdateNote()
 
-  useEffect(() => {
-    setContent(note.content ?? '')
-    setViewMode(false)
-  }, [note.id])
-
-  useEffect(() => {
+  if (note.content !== syncedContent) {
+    setSyncedContent(note.content ?? '')
     if (!viewMode) setContent(note.content ?? '')
-  }, [note.content])
+  }
 
   function handleBlur() {
     if (content !== (note.content ?? '')) {
@@ -245,7 +242,7 @@ export default function NotesEditorWidget() {
           <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border)' }}>
             <TagPicker entityType="note" entityId={activeNote.id} />
           </div>
-          <NoteEditor note={activeNote} />
+          <NoteEditor key={activeNote.id} note={activeNote} />
         </>
       )}
 

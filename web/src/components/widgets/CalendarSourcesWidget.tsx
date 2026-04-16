@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/api'
 import type { CalendarSource } from '../../lib/types'
@@ -26,27 +26,18 @@ export default function CalendarSourcesWidget() {
   const qc = useQueryClient()
   const { data, isLoading, error } = useSources()
 
-  const [queuedIds, setQueuedIds] = useState<Set<number>>(new Set())
-  const prevSyncedAt = useRef<Record<number, string | null>>({})
-
-  useEffect(() => {
-    if (!data) return
-    const completed: number[] = []
-    for (const src of data) {
-      const prev = prevSyncedAt.current[src.id] ?? null
-      if (queuedIds.has(src.id) && src.last_synced_at !== prev) {
-        completed.push(src.id)
-      }
-      prevSyncedAt.current[src.id] = src.last_synced_at ?? null
-    }
-    if (completed.length > 0) {
-      setQueuedIds(prev => {
-        const s = new Set(prev)
-        completed.forEach(id => s.delete(id))
-        return s
-      })
-    }
-  }, [data, queuedIds])
+  const [syncBaseline, setSyncBaseline] = useState<Record<number, string | null>>({})
+  const queuedIds = useMemo(() => {
+    if (!data) return new Set(Object.keys(syncBaseline).map(Number))
+    return new Set(
+      (Object.entries(syncBaseline) as [string, string | null][])
+        .filter(([id, baseline]) => {
+          const src = data.find(s => s.id === Number(id))
+          return !src || src.last_synced_at === baseline
+        })
+        .map(([id]) => Number(id))
+    )
+  }, [data, syncBaseline])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -59,8 +50,11 @@ export default function CalendarSourcesWidget() {
   const syncSource = useMutation({
     mutationFn: (id: number) =>
       apiFetch(`/api/calendar/sources/${id}/sync`, { method: 'POST' }),
-    onMutate: (id) => setQueuedIds(prev => new Set(prev).add(id)),
-    onError: (_e, id) => setQueuedIds(prev => { const s = new Set(prev); s.delete(id); return s }),
+    onMutate: (id) => {
+      const src = data?.find(s => s.id === id)
+      setSyncBaseline(prev => ({ ...prev, [id]: src?.last_synced_at ?? null }))
+    },
+    onError: (_err, id) => setSyncBaseline(prev => { const s = { ...prev }; delete s[id]; return s }),
   })
 
   const deleteSource = useMutation({

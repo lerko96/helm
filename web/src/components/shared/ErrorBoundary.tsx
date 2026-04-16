@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react'
+import { Component, type ReactNode } from 'react'
 
 interface Props {
   widgetTitle: string
@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, message: error.message }
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {}
+  componentDidCatch() {}
 
   render() {
     if (this.state.hasError) {

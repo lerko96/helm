@@ -54,7 +54,7 @@ export default function CalendarWidget() {
   const { data: sources } = useCalendarSources()
   const { data, isLoading, error } = useCalendarEvents()
 
-  const [localSourceId, setLocalSourceId] = useState<number | null>(null)
+  const localSourceId = useMemo(() => sources?.find(s => s.is_local)?.id ?? null, [sources])
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today)
@@ -70,21 +70,15 @@ export default function CalendarWidget() {
         method: 'POST',
         body: JSON.stringify({ name: 'Local', is_local: true, color: '#3b82f6' }),
       }),
-    onSuccess: (res) => {
-      setLocalSourceId(res.id)
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-sources'] })
     },
   })
 
   useEffect(() => {
-    if (sources === undefined) return
-    const local = sources.find(s => s.is_local)
-    if (local) {
-      setLocalSourceId(local.id)
-    } else if (!createLocalSource.isPending) {
-      createLocalSource.mutate()
-    }
-  }, [sources]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (sources === undefined || sources.some(s => s.is_local) || createLocalSource.isPending) return
+    createLocalSource.mutate()
+  }, [sources, createLocalSource])
 
   const createEvent = useMutation({
     mutationFn: (body: object) =>

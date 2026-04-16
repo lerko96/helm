@@ -19,10 +19,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o helm ./cmd/helm
 
 # ── Stage 3: Minimal runtime image ───────────────────────────────────────────
 FROM alpine:3.21
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata wget \
+    && adduser -D -u 1000 -s /sbin/nologin helm
 WORKDIR /app
 COPY --from=backend /app/helm ./
+RUN chown helm:helm /app/helm
+USER helm
 EXPOSE 8080
 VOLUME ["/data"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:8080/healthz || exit 1
 ENTRYPOINT ["./helm"]
 CMD ["/config/config.yml"]

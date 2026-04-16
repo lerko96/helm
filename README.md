@@ -153,3 +153,110 @@ Migrations run automatically on startup. Data persists in the `helm-data` named 
 ```
 GET /healthz → 200 {"status":"ok"}
 ```
+
+---
+
+## Reverse proxy (HTTPS)
+
+**Caddy** (`/etc/caddy/Caddyfile`):
+```
+helm.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**nginx** (`/etc/nginx/sites-available/helm`):
+```nginx
+server {
+    listen 443 ssl;
+    server_name helm.example.com;
+    # ssl_certificate / ssl_certificate_key ...
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+---
+
+## Bare metal deploy (systemd)
+
+Build the binary, place it and the config, then install the service:
+
+```bash
+go build -o /usr/local/bin/helm ./cmd/helm
+cp config.yml /etc/helm/config.yml
+```
+
+`/etc/systemd/system/helm.service`:
+```ini
+[Unit]
+Description=Helm dashboard
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/helm /etc/helm/config.yml
+WorkingDirectory=/var/lib/helm
+User=helm
+Group=helm
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+useradd -r -s /sbin/nologin helm
+mkdir -p /var/lib/helm/data
+chown -R helm:helm /var/lib/helm
+systemctl enable --now helm
+```
+
+---
+
+## Backup and restore
+
+Helm stores all data in two places:
+
+```bash
+# Backup
+cp /var/lib/helm/data/helm.db helm.db.bak
+cp -r /var/lib/helm/data/attachments attachments.bak
+
+# Restore (stop Helm first)
+systemctl stop helm
+cp helm.db.bak /var/lib/helm/data/helm.db
+cp -r attachments.bak /var/lib/helm/data/attachments
+systemctl start helm
+```
+
+For Docker, the named volume `helm-data` contains both. Use `docker cp` or mount a backup container.
+
+---
+
+## Troubleshooting
+
+**Helm won't start:**
+- `auth.secret must be at least 32 characters` — generate a proper secret: `openssl rand -hex 32`
+- Port already in use — change `server.port` in config.yml
+
+**401 Unauthorized after config change:**
+- Changing `auth.secret` invalidates all existing sessions. Log in again.
+- CalDAV passwords are encrypted with `auth.secret`. After rotating the secret, re-enter CalDAV passwords in the cal-sources widget.
+
+**Logs:** Helm writes to stdout/stderr. With Docker: `docker compose logs -f helm`. With systemd: `journalctl -u helm -f`.
+
+**Database locked:** SQLite uses WAL mode with a single writer. If Helm was killed mid-write, the WAL file recovers automatically on next startup.
+
+---
+
+## Security notes
+
+- Single-user only. There is no CSRF protection — use HTTPS and a reverse proxy in front.
+- Rate limiting applies only to `POST /api/auth/login` (10 attempts/min per IP). Put Helm behind a firewall; do not expose port 8080 directly.
+- CalDAV source passwords are stored encrypted (AES-256-GCM, key derived from `auth.secret`).

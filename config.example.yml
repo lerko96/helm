@@ -1,21 +1,28 @@
 server:
-  host: 0.0.0.0
+  host: 0.0.0.0   # bind address; use 127.0.0.1 if behind a reverse proxy
   port: 8080
 
 auth:
-  # Password for logging in. Change this before exposing to a network.
+  # REQUIRED. Password for logging in to the dashboard.
   password: changeme
-  # Secret used to sign JWT tokens. Use a long random string.
-  # Generate one with: openssl rand -hex 32
+  # REQUIRED. Secret used to sign JWT tokens. Must be at least 32 characters.
+  # Changing this value invalidates all active sessions — users must log in again.
+  # CalDAV source passwords are encrypted with a key derived from this secret;
+  # rotating it means you must re-enter CalDAV passwords in the cal-sources widget.
+  # Generate a strong secret with: openssl rand -hex 32
   secret: replace-with-a-long-random-string
 
 storage:
+  # Path to the SQLite database file. Created automatically if it doesn't exist.
   db_path: ./data/helm.db
+  # Directory where uploaded attachments are stored. Created automatically.
   attachments_path: ./data/attachments
 
-# Dashboard layout — columns contain widgets stacked top to bottom.
+# Dashboard layout — pages contain columns, columns contain widgets stacked top to bottom.
+# Pages are rendered as tabs in the header navigation.
 # Column sizes: small (~25%), medium (~33%), large (~50%)
-# Widget types: memos, todos, notes, calendar, clipboard, bookmarks
+# All widget types: memos, todos, task-board, task-lists, notes-editor, notes-folders,
+#                   cal-view, cal-sources, bookmarks, clipboard, tags
 pages:
   - name: Home
     columns:
@@ -23,10 +30,10 @@ pages:
         widgets:
           - type: memos
             config:
-              limit: 15
+              limit: 15         # max items to show (optional, default: unlimited)
           - type: todos
             config:
-              filter: today   # today | all | pinned
+              filter: today     # today | all | pinned (optional, default: all)
       - size: large
         widgets:
           - type: cal-view

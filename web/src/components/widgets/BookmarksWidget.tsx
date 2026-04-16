@@ -8,7 +8,7 @@ import ConfirmButton from '../shared/ConfirmButton'
 
 function useBookmarks(collectionId: number | null, query: string) {
   return useQuery({
-    queryKey: ['bookmarks', { collectionId, query }],
+    queryKey: ['bookmarks', collectionId, query],
     queryFn: () => {
       const params = new URLSearchParams()
       if (collectionId != null) params.set('collection_id', String(collectionId))

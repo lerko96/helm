@@ -29,7 +29,8 @@ func SSEEvents(b *broker.Broker, secret string) http.HandlerFunc {
 
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+		http.Error(w, `{"error":"streaming unsupported"}`, http.StatusInternalServerError)
 			return
 		}
 

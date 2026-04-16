@@ -54,6 +54,10 @@ export default function CalendarSourcesWidget() {
       const src = data?.find(s => s.id === id)
       setSyncBaseline(prev => ({ ...prev, [id]: src?.last_synced_at ?? null }))
     },
+    onSuccess: (_data, id) => {
+      setSyncBaseline(prev => { const s = { ...prev }; delete s[id]; return s })
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+    },
     onError: (_err, id) => setSyncBaseline(prev => { const s = { ...prev }; delete s[id]; return s }),
   })
 

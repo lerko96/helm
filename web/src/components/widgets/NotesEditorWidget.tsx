@@ -68,13 +68,7 @@ function useCreateNote(folderId: number | null) {
 function NoteEditor({ note }: { note: Note }) {
   const [content, setContent] = useState(note.content ?? '')
   const [viewMode, setViewMode] = useState(false)
-  const [syncedContent, setSyncedContent] = useState(note.content ?? '')
   const update = useUpdateNote()
-
-  if (note.content !== syncedContent) {
-    setSyncedContent(note.content ?? '')
-    if (!viewMode) setContent(note.content ?? '')
-  }
 
   function handleBlur() {
     if (content !== (note.content ?? '')) {

@@ -122,6 +122,9 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Get("/api/attachments", handlers.ListAttachments(db))
 		r.Get("/api/attachments/{id}/download", handlers.DownloadAttachment(db))
 		r.Delete("/api/attachments/{id}", handlers.DeleteAttachment(db))
+
+		// Custom-API proxy (Phase C)
+		r.Get("/api/proxy", handlers.ProxyCustomAPI(cfg))
 	})
 
 	// SPA catch-all: serve static files, fall back to index.html

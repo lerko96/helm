@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -123,6 +122,9 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Get("/api/attachments", handlers.ListAttachments(db))
 		r.Get("/api/attachments/{id}/download", handlers.DownloadAttachment(db))
 		r.Delete("/api/attachments/{id}", handlers.DeleteAttachment(db))
+
+		// Custom-API proxy (Phase C)
+		r.Get("/api/proxy", handlers.ProxyCustomAPI(cfg))
 	})
 
 	// SPA catch-all: serve static files, fall back to index.html
@@ -141,12 +143,6 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 	}
 
 	return r
-}
-
-var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
-
-func slugify(s string) string {
-	return strings.Trim(nonAlnum.ReplaceAllString(strings.ToLower(s), "-"), "-")
 }
 
 type apiWidget struct {
@@ -172,17 +168,17 @@ type apiPage struct {
 func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 	pages := make([]apiPage, len(cfg.Pages))
 	for i, p := range cfg.Pages {
-		pageSlug := "/" + slugify(p.Name)
+		pageSlug := "/" + config.SlugifyPageName(p.Name)
 		if i == 0 {
 			pageSlug = "/"
 		}
-		pageID := slugify(p.Name)
+		pageID := config.SlugifyPageName(p.Name)
 		cols := make([]apiColumn, len(p.Columns))
 		for j, c := range p.Columns {
 			widgets := make([]apiWidget, len(c.Widgets))
 			for k, w := range c.Widgets {
 				widgets[k] = apiWidget{
-					ID:     pageID + "-col-" + strconv.Itoa(j) + "-" + w.Type + "-" + strconv.Itoa(k),
+					ID:     config.WidgetID(p.Name, j, w.Type, k),
 					Type:   w.Type,
 					Title:  cases.Title(language.Und).String(strings.ReplaceAll(w.Type, "-", " ")),
 					Config: w.Config,

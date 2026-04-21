@@ -10,6 +10,11 @@ services:
       - helm-data:/data
       # Copy config.example.yml → config.yml and edit before starting
       - ./config.yml:/config/config.yml:ro
+      # docker-status widget: mount the engine socket read-only to list
+      # containers. Opt-in — a container with r/w access to this socket can
+      # escape confinement. Leave commented unless you need the widget and
+      # accept the trade-off. Pair with `docker.enabled: true` in config.yml.
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - TZ=America/New_York
 

@@ -18,11 +18,20 @@ storage:
   # Directory where uploaded attachments are stored. Created automatically.
   attachments_path: ./data/attachments
 
+# docker-status widget (opt-in). Requires /var/run/docker.sock to be mounted
+# into the container read-only — see docker-compose.yml. A container with
+# write access to this socket can escape confinement, so leave disabled
+# unless you understand the surface.
+docker:
+  enabled: false
+  socket: /var/run/docker.sock
+
 # Dashboard layout — pages contain columns, columns contain widgets stacked top to bottom.
 # Pages are rendered as tabs in the header navigation.
 # Column sizes: small (~25%), medium (~33%), large (~50%)
 # All widget types: memos, todos, task-board, task-lists, notes-editor, notes-folders,
-#                   cal-view, cal-sources, bookmarks, clipboard, tags, custom-api, iframe
+#                   cal-view, cal-sources, bookmarks, clipboard, tags, custom-api, iframe,
+#                   docker-status
 #
 # iframe_allowed_hosts: hosts the iframe widget may embed. The backend
 # validates iframe widget URLs against this list at boot and emits a matching
@@ -75,3 +84,9 @@ pages:
 #              url: https://grafana.example.com/d/abc123/my-dashboard
 #              height: 640px               # optional, default 480px
 #              sandbox: allow-same-origin allow-scripts  # default — widen if needed
+#
+# Example: docker-status widget (uncomment and set docker.enabled: true above)
+#          - type: docker-status
+#            config:
+#              refresh: 30s                 # optional, default 30s
+#              name_filter: prod-           # optional substring; empty = all

@@ -16,6 +16,7 @@ import TaskBoardWidget from './components/widgets/TaskBoardWidget'
 import CalendarWidget from './components/widgets/CalendarWidget'
 import CalendarSourcesWidget from './components/widgets/CalendarSourcesWidget'
 import TagsWidget from './components/widgets/TagsWidget'
+import CustomApiWidget from './components/widgets/CustomApiWidget'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ const WIDGET_COMPONENTS = {
   'cal-view': CalendarWidget,
   'cal-sources': CalendarSourcesWidget,
   tags: TagsWidget,
+  'custom-api': CustomApiWidget,
 }
 
 export default function App() {

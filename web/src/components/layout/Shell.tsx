@@ -25,6 +25,7 @@ export interface Widget {
 }
 
 export interface WidgetProps {
+  id?: string
   config?: Record<string, unknown>
 }
 
@@ -167,7 +168,7 @@ function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetCom
       </div>
       <div style={{ background: 'var(--color-bg)', minHeight: '80px' }}>
         <ErrorBoundary widgetTitle={widget.title}>
-          {Component ? <Component config={widget.config} /> : widget.content ?? <EmptyWidget />}
+          {Component ? <Component id={widget.id} config={widget.config} /> : widget.content ?? <EmptyWidget />}
         </ErrorBoundary>
       </div>
     </div>

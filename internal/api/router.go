@@ -181,7 +181,7 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 					ID:     config.WidgetID(p.Name, j, w.Type, k),
 					Type:   w.Type,
 					Title:  cases.Title(language.Und).String(strings.ReplaceAll(w.Type, "-", " ")),
-					Config: w.Config,
+					Config: sanitizeWidgetConfig(w.Type, w.Config),
 				}
 			}
 			cols[j] = apiColumn{
@@ -206,5 +206,29 @@ func configPagesHandler(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(data)
+	}
+}
+
+// sanitizeWidgetConfig strips server-only fields from a widget's config before
+// it's shipped to the browser. Secrets (custom-api headers, upstream URLs)
+// never reach the client — it only needs the fields required for rendering.
+func sanitizeWidgetConfig(widgetType string, raw map[string]any) map[string]any {
+	if raw == nil {
+		return nil
+	}
+	switch widgetType {
+	case "custom-api":
+		// Browser needs template + refresh to render; url + headers stay
+		// server-side (proxy looks them up by widget_id).
+		out := make(map[string]any, 2)
+		if v, ok := raw["template"]; ok {
+			out["template"] = v
+		}
+		if v, ok := raw["refresh"]; ok {
+			out["refresh"] = v
+		}
+		return out
+	default:
+		return raw
 	}
 }

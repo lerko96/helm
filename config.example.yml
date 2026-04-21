@@ -22,7 +22,7 @@ storage:
 # Pages are rendered as tabs in the header navigation.
 # Column sizes: small (~25%), medium (~33%), large (~50%)
 # All widget types: memos, todos, task-board, task-lists, notes-editor, notes-folders,
-#                   cal-view, cal-sources, bookmarks, clipboard, tags
+#                   cal-view, cal-sources, bookmarks, clipboard, tags, custom-api
 pages:
   - name: Home
     columns:
@@ -44,3 +44,18 @@ pages:
           - type: clipboard
             config:
               limit: 5
+
+# Example: custom-api widget (uncomment and edit)
+# The backend fetches the URL via a SSRF-hardened client and caches the result
+# per `refresh`. URL + headers stay server-side; only `template` + `refresh`
+# reach the browser. Templates use {{.dot.path}} substitution, HTML-escaped.
+#
+#          - type: custom-api
+#            config:
+#              url: https://api.github.com/repos/lerko96/helm
+#              refresh: 5m                  # minimum 10s, default 5m
+#              headers:                     # optional; secrets stay server-side
+#                Authorization: Bearer <token>
+#              template: |
+#                {{.name}} — ☆ {{.stargazers_count}}
+#                {{.description}}

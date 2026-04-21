@@ -4,55 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net"
-	"net/url"
 	"time"
 
 	"github.com/lerko/helm/internal/crypto"
+	"github.com/lerko/helm/internal/httpclient"
 )
 
-var privateRanges = []net.IPNet{
-	parseCIDR("127.0.0.0/8"),
-	parseCIDR("10.0.0.0/8"),
-	parseCIDR("172.16.0.0/12"),
-	parseCIDR("192.168.0.0/16"),
-	parseCIDR("169.254.0.0/16"), // link-local
-	parseCIDR("::1/128"),        // IPv6 loopback
-	parseCIDR("fc00::/7"),       // IPv6 ULA
-}
-
-func parseCIDR(s string) net.IPNet {
-	_, n, _ := net.ParseCIDR(s)
-	return *n
-}
-
-// validateCalDAVURL rejects non-HTTPS schemes and URLs that resolve to
-// private/loopback addresses to prevent SSRF attacks.
+// validateCalDAVURL defers to the shared SSRF policy: https-only + no
+// private/loopback destinations.
 func validateCalDAVURL(rawURL string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-	if u.Scheme != "https" {
-		return fmt.Errorf("caldav URL must use https (got %q)", u.Scheme)
-	}
-	host := u.Hostname()
-	addrs, err := net.LookupHost(host)
-	if err != nil {
-		return fmt.Errorf("could not resolve host %q: %w", host, err)
-	}
-	for _, addr := range addrs {
-		ip := net.ParseIP(addr)
-		if ip == nil {
-			continue
-		}
-		for _, block := range privateRanges {
-			if block.Contains(ip) {
-				return fmt.Errorf("caldav URL resolves to private/loopback address (%s)", addr)
-			}
-		}
-	}
-	return nil
+	return httpclient.Validate(rawURL, httpclient.Options{})
 }
 
 // CalendarSource mirrors the DB row fields needed for sync.

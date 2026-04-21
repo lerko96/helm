@@ -15,6 +15,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/lerko/helm/internal/httpclient"
 )
 
 // Event is a parsed VEVENT from a CalDAV source.
@@ -38,13 +40,14 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// NewClient creates a Client with a 30-second timeout.
+// NewClient creates a Client backed by the shared SSRF-hardened HTTP client
+// (https-only, blocks private/loopback/link-local destinations at dial time).
 func NewClient(url, username, password string) *Client {
 	return &Client{
 		URL:        url,
 		Username:   username,
 		Password:   password,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: httpclient.New(httpclient.Options{Timeout: 30 * time.Second}),
 	}
 }
 

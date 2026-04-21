@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
+/*
+ * Theme tokens are scoped under [data-theme="…"] so new themes drop in without
+ * touching components. Tailwind's @theme block holds the structural tokens
+ * (typography/spacing/radius) + the default palette that Tailwind utilities
+ * compile against; [data-theme] selectors override the color variables at
+ * runtime via document.documentElement dataset. Widgets read colors through
+ * var(--color-*) and stay theme-agnostic.
+ */
 @theme {
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
+  /* Default palette (noir) — lives in @theme so Tailwind utility classes
+     resolve against it at build time. [data-theme="noir"] mirrors these
+     at runtime. */
   --color-bg: #0a0a0a;
   --color-surface: #111111;
   --color-surface-raised: #1a1a1a;
@@ -24,6 +35,20 @@
 
   --radius-none: 0px;
   --radius-sm: 1px;
+}
+
+:root[data-theme="noir"] {
+  color-scheme: dark;
+  --color-bg: #0a0a0a;
+  --color-surface: #111111;
+  --color-surface-raised: #1a1a1a;
+  --color-border: #2a2a2a;
+  --color-border-bright: #444444;
+  --color-text-primary: #e8e8e8;
+  --color-text-label: #808080;
+  --color-text-dim: #5c5c5c;
+  --color-accent-red: #cc2200;
+  --color-accent-green: #00cc44;
 }
 
 :root {

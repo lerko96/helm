@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchStore } from '../../stores/searchStore'
 import ErrorBoundary from '../shared/ErrorBoundary'
+import ThemeSwitcher from '../ThemeSwitcher'
 
 export interface Page {
   id: string
@@ -100,6 +101,7 @@ export default function Shell({ pages, header, widgetComponents = {}, onLogout }
               onBlur={e => { if (!query) e.currentTarget.style.width = '160px' }}
             />
             <Clock />
+            <ThemeSwitcher />
             {onLogout && (
               <button
                 onClick={onLogout}

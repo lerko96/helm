@@ -51,6 +51,34 @@
   --color-accent-green: #00cc44;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ebebeb;
+  --color-border: #d0d0d0;
+  --color-border-bright: #a0a0a0;
+  --color-text-primary: #0a0a0a;
+  --color-text-label: #555555;
+  --color-text-dim: #888888;
+  --color-accent-red: #b51d00;
+  --color-accent-green: #0a7a28;
+}
+
+:root[data-theme="gruvbox"] {
+  color-scheme: dark;
+  --color-bg: #1d2021;
+  --color-surface: #282828;
+  --color-surface-raised: #3c3836;
+  --color-border: #504945;
+  --color-border-bright: #7c6f64;
+  --color-text-primary: #ebdbb2;
+  --color-text-label: #a89984;
+  --color-text-dim: #7c6f64;
+  --color-accent-red: #cc241d;
+  --color-accent-green: #98971a;
+}
+
 :root {
   color-scheme: dark;
   font-family: var(--font-mono);

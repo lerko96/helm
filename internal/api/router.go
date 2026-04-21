@@ -26,6 +26,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
+	r.Use(middleware.CSP(cfg.IframeAllowedHosts))
 
 	// Health check — unauthenticated, for reverse proxies
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +227,20 @@ func sanitizeWidgetConfig(widgetType string, raw map[string]any) map[string]any 
 		}
 		if v, ok := raw["refresh"]; ok {
 			out["refresh"] = v
+		}
+		return out
+	case "iframe":
+		// Iframe URL is public (it's embedded in the DOM), but we still strip
+		// anything we don't use in rendering — explicit allowlist, not denylist.
+		out := make(map[string]any, 3)
+		if v, ok := raw["url"]; ok {
+			out["url"] = v
+		}
+		if v, ok := raw["height"]; ok {
+			out["height"] = v
+		}
+		if v, ok := raw["sandbox"]; ok {
+			out["sandbox"] = v
 		}
 		return out
 	default:

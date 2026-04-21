@@ -17,6 +17,7 @@ import CalendarWidget from './components/widgets/CalendarWidget'
 import CalendarSourcesWidget from './components/widgets/CalendarSourcesWidget'
 import TagsWidget from './components/widgets/TagsWidget'
 import CustomApiWidget from './components/widgets/CustomApiWidget'
+import IframeWidget from './components/widgets/IframeWidget'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ const WIDGET_COMPONENTS = {
   'cal-sources': CalendarSourcesWidget,
   tags: TagsWidget,
   'custom-api': CustomApiWidget,
+  iframe: IframeWidget,
 }
 
 export default function App() {

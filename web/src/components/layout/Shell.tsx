@@ -19,11 +19,15 @@ export interface Widget {
   id: string
   type: string
   title: string
+  config?: Record<string, unknown>
   content?: React.ReactNode
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WidgetComponentMap = Record<string, React.ComponentType<any>>
+export interface WidgetProps {
+  config?: Record<string, unknown>
+}
+
+type WidgetComponentMap = Record<string, React.ComponentType<WidgetProps>>
 
 interface ShellProps {
   pages: Page[]
@@ -161,7 +165,7 @@ function WidgetWrapper({ widget, widgetComponents }: { widget: Widget; widgetCom
       </div>
       <div style={{ background: 'var(--color-bg)', minHeight: '80px' }}>
         <ErrorBoundary widgetTitle={widget.title}>
-          {Component ? <Component /> : widget.content ?? <EmptyWidget />}
+          {Component ? <Component config={widget.config} /> : widget.content ?? <EmptyWidget />}
         </ErrorBoundary>
       </div>
     </div>

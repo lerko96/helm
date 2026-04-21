@@ -1,0 +1,52 @@
+# Developer config — notes + todos + clipboard + bookmarks, plus a
+# custom-api widget hitting a public endpoint (GitHub repo metadata) and a
+# docker-status widget for a local engine.
+#
+# Requires docker-compose socket mount + docker.enabled: true for the
+# docker-status widget. See docker-compose.yml.
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+auth:
+  password: changeme
+  secret: replace-with-a-long-random-string-at-least-32-chars
+
+storage:
+  db_path: ./data/helm.db
+  attachments_path: ./data/attachments
+
+docker:
+  enabled: true
+  socket: /var/run/docker.sock
+
+pages:
+  - name: Code
+    columns:
+      - size: small
+        widgets:
+          - type: todos
+            config:
+              filter: today
+          - type: clipboard
+            config:
+              limit: 10
+      - size: large
+        widgets:
+          - type: notes-editor
+          - type: notes-folders
+      - size: small
+        widgets:
+          - type: bookmarks
+          - type: custom-api
+            config:
+              url: https://api.github.com/repos/lerko96/helm
+              refresh: 10m
+              template: |
+                {{.name}} — ☆ {{.stargazers_count}}
+                {{.description}}
+                open issues: {{.open_issues_count}}
+          - type: docker-status
+            config:
+              refresh: 30s

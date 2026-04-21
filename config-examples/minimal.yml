@@ -1,0 +1,24 @@
+# Minimal config — one page, memos + todos.
+# Good starting point; copy to config.yml and edit auth.password + auth.secret.
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+auth:
+  password: changeme
+  secret: replace-with-a-long-random-string-at-least-32-chars
+
+storage:
+  db_path: ./data/helm.db
+  attachments_path: ./data/attachments
+
+pages:
+  - name: Home
+    columns:
+      - size: small
+        widgets:
+          - type: memos
+      - size: small
+        widgets:
+          - type: todos

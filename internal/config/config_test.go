@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -159,5 +161,32 @@ func TestWidgetID_Stable(t *testing.T) {
 	want := "my-dashboard-col-1-custom-api-2"
 	if got != want {
 		t.Errorf("WidgetID = %q, want %q", got, want)
+	}
+}
+
+// TestConfigExamples_AllLoad keeps config-examples/ honest — every example
+// must pass the same Load() validation as a real config. Catches drift when
+// we tighten validation or rename a field.
+func TestConfigExamples_AllLoad(t *testing.T) {
+	dir := filepath.Join("..", "..", "config-examples")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read config-examples dir: %v", err)
+	}
+
+	if len(entries) == 0 {
+		t.Fatal("no examples found in config-examples/")
+	}
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yml") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		t.Run(e.Name(), func(t *testing.T) {
+			if _, err := Load(path); err != nil {
+				t.Errorf("example %s failed to load: %v", path, err)
+			}
+		})
 	}
 }

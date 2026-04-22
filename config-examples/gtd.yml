@@ -1,0 +1,47 @@
+# GTD config — inbox (memos) → triage (todos) → archive (notes).
+# Three pages mirroring the classic capture/clarify/review flow.
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+auth:
+  password: changeme
+  secret: replace-with-a-long-random-string-at-least-32-chars
+
+storage:
+  db_path: ./data/helm.db
+  attachments_path: ./data/attachments
+
+pages:
+  - name: Inbox
+    columns:
+      - size: full
+        widgets:
+          - type: memos
+
+  - name: Triage
+    columns:
+      - size: small
+        widgets:
+          - type: task-lists
+      - size: large
+        widgets:
+          - type: task-board
+      - size: small
+        widgets:
+          - type: todos
+            config:
+              filter: today
+
+  - name: Archive
+    columns:
+      - size: small
+        widgets:
+          - type: notes-folders
+      - size: large
+        widgets:
+          - type: notes-editor
+      - size: small
+        widgets:
+          - type: tags

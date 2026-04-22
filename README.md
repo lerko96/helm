@@ -77,6 +77,9 @@ cd web && npm run dev
 | `notes-folders` | Folder picker for notes |
 | `notes-editor` | Note list + editor with markdown view/edit toggle, tags, pin |
 | `tags` | Tag management — create, delete, view all |
+| `custom-api` | Fetch JSON from any URL server-side, render via `{{.dot.path}}` template. Secrets stay in `config.yml` |
+| `iframe` | Embed an external dashboard. Gated by `iframe_allowed_hosts` + CSP frame-src |
+| `docker-status` | Live container list with state color-coding. Opt-in; requires `/var/run/docker.sock` mount |
 
 All widgets support global search from the header bar. Tags attach/detach from every entity type.
 
@@ -133,6 +136,25 @@ pages:
 ```
 
 Column sizes: `small` (~25%), `medium` (~33%), `large` (~50%).
+
+### Starter configs
+
+Copy any of the ready-made layouts in [`config-examples/`](config-examples) to `config.yml` and edit:
+
+- **`minimal.yml`** — one page, memos + todos. Smallest working config.
+- **`developer.yml`** — notes + todos + clipboard + bookmarks + `custom-api` + `docker-status`.
+- **`personal.yml`** — calendar + memos + todos + notes + an `iframe` embedding Home Assistant.
+- **`gtd.yml`** — three pages modelled on the Getting Things Done flow (inbox → triage → archive).
+
+### Themes
+
+Three built-in themes: `noir` (default, Terminal-Noir aesthetic), `light`, `gruvbox`. Toggle in the top-right of the header; choice persists in `localStorage`.
+
+### Integrations
+
+- **`custom-api`** — declares `url`, `refresh` (≥10s), optional `headers` (e.g. `Authorization: Bearer …`) in `config.yml`. The backend fetches through an SSRF-hardened client; the browser only ever sees the rendered template. Never puts URLs or auth tokens in the DOM.
+- **`iframe`** — declare embeddable hosts under `iframe_allowed_hosts`. The backend validates widget URLs against this list at boot *and* sets a matching `Content-Security-Policy: frame-src`. An un-allowlisted host fails fast at startup.
+- **`docker-status`** — opt-in. Set `docker.enabled: true` and mount `/var/run/docker.sock:/var/run/docker.sock:ro`. Mounting the docker socket is a real security surface — a container with r/w on that socket can escape; `:ro` limits the blast radius to read-only engine queries.
 
 ---
 

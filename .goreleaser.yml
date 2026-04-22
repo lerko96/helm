@@ -14,6 +14,15 @@ builds:
     goarch:
       - amd64
       - arm64
+      - arm
+    goarm:
+      - "7"
+    # Raspberry Pi Zero (original) uses armv6 — skipped; v2/Zero 2 W and later
+    # are all armv7+. Matrix-level exclusion so darwin and linux get the full
+    # set without emitting darwin/arm.
+    ignore:
+      - goos: darwin
+        goarch: arm
     main: ./cmd/helm
     binary: helm
     ldflags:

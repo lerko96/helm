@@ -22,7 +22,15 @@ storage:
 # Pages are rendered as tabs in the header navigation.
 # Column sizes: small (~25%), medium (~33%), large (~50%)
 # All widget types: memos, todos, task-board, task-lists, notes-editor, notes-folders,
-#                   cal-view, cal-sources, bookmarks, clipboard, tags, custom-api
+#                   cal-view, cal-sources, bookmarks, clipboard, tags, custom-api, iframe
+#
+# iframe_allowed_hosts: hosts the iframe widget may embed. The backend
+# validates iframe widget URLs against this list at boot and emits a matching
+# CSP frame-src. An iframe widget pointing at a host missing from this list
+# fails fast at startup.
+# iframe_allowed_hosts:
+#   - grafana.example.com
+#   - dashboard.local
 pages:
   - name: Home
     columns:
@@ -59,3 +67,11 @@ pages:
 #              template: |
 #                {{.name}} — ☆ {{.stargazers_count}}
 #                {{.description}}
+#
+# Example: iframe widget (uncomment and edit; remember to add the host to
+# iframe_allowed_hosts above).
+#          - type: iframe
+#            config:
+#              url: https://grafana.example.com/d/abc123/my-dashboard
+#              height: 640px               # optional, default 480px
+#              sandbox: allow-same-origin allow-scripts  # default — widen if needed

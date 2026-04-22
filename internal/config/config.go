@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -31,10 +32,11 @@ func WidgetID(pageName string, colIdx int, widgetType string, widgetIdx int) str
 }
 
 type Config struct {
-	Server  ServerConfig  `yaml:"server"`
-	Auth    AuthConfig    `yaml:"auth"`
-	Storage StorageConfig `yaml:"storage"`
-	Pages   []Page        `yaml:"pages"`
+	Server             ServerConfig  `yaml:"server"`
+	Auth               AuthConfig    `yaml:"auth"`
+	Storage            StorageConfig `yaml:"storage"`
+	IframeAllowedHosts []string      `yaml:"iframe_allowed_hosts"`
+	Pages              []Page        `yaml:"pages"`
 }
 
 type ServerConfig struct {
@@ -130,6 +132,80 @@ func ParseCustomAPI(raw map[string]any) (CustomAPIConfig, error) {
 	return out, nil
 }
 
+// IframeConfig describes the per-widget config accepted by the `iframe` widget.
+// URL is validated at config load against the operator-declared allowlist
+// (Config.IframeAllowedHosts) so a typo or drift fails fast, not in the
+// browser where the CSP would silently block the frame.
+type IframeConfig struct {
+	URL     string
+	Height  string
+	Sandbox string
+}
+
+// DefaultIframeSandbox is what the frontend sets on the iframe when the
+// widget config omits `sandbox`. Narrow enough to keep cross-origin frames
+// from tampering with Helm's DOM, wide enough for most self-hosted tools.
+const DefaultIframeSandbox = "allow-same-origin allow-scripts"
+
+// ParseIframe extracts + validates the typed config for an iframe widget.
+// Requires the URL's host be on the operator's iframe_allowed_hosts list —
+// the CSP frame-src directive is built from the same list, so a widget
+// pointing at an un-allowlisted host would render as a blank frame.
+func ParseIframe(raw map[string]any, allowedHosts []string) (IframeConfig, error) {
+	var out IframeConfig
+
+	urlVal, _ := raw["url"].(string)
+	if urlVal == "" {
+		return out, fmt.Errorf("iframe: url is required")
+	}
+
+	host, err := extractHost(urlVal)
+	if err != nil {
+		return out, fmt.Errorf("iframe url %q: %w", urlVal, err)
+	}
+	if !hostAllowed(host, allowedHosts) {
+		return out, fmt.Errorf(
+			"iframe url %q: host %q not in iframe_allowed_hosts (add to config.yml to embed)",
+			urlVal, host,
+		)
+	}
+	out.URL = urlVal
+
+	if h, ok := raw["height"].(string); ok {
+		out.Height = h
+	}
+	if sb, ok := raw["sandbox"].(string); ok {
+		out.Sandbox = sb
+	} else {
+		out.Sandbox = DefaultIframeSandbox
+	}
+
+	return out, nil
+}
+
+func extractHost(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return "", fmt.Errorf("scheme %q not allowed (use https or http)", u.Scheme)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("url has no host")
+	}
+	return u.Hostname(), nil
+}
+
+func hostAllowed(host string, allowed []string) bool {
+	for _, h := range allowed {
+		if strings.EqualFold(h, host) {
+			return true
+		}
+	}
+	return false
+}
+
 func Load(path string) (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
@@ -164,7 +240,7 @@ func Load(path string) (*Config, error) {
 	for pi, page := range cfg.Pages {
 		for ci, col := range page.Columns {
 			for wi, w := range col.Widgets {
-				if err := validateWidget(w); err != nil {
+				if err := validateWidget(w, cfg); err != nil {
 					return nil, fmt.Errorf(
 						"page[%d] %q column[%d] widget[%d] (%s): %w",
 						pi, page.Name, ci, wi, w.Type, err,
@@ -180,10 +256,13 @@ func Load(path string) (*Config, error) {
 // validateWidget delegates to per-type validators. Unknown types are allowed
 // through — the frontend treats them as empty widgets, matching existing
 // behavior where `type` is a loose contract.
-func validateWidget(w Widget) error {
+func validateWidget(w Widget, cfg *Config) error {
 	switch w.Type {
 	case "custom-api":
 		_, err := ParseCustomAPI(w.Config)
+		return err
+	case "iframe":
+		_, err := ParseIframe(w.Config, cfg.IframeAllowedHosts)
 		return err
 	}
 	return nil

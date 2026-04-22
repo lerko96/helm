@@ -69,6 +69,89 @@ func TestParseCustomAPI_RequiresURL(t *testing.T) {
 	}
 }
 
+func TestParseIframe_Happy(t *testing.T) {
+	got, err := ParseIframe(
+		map[string]any{"url": "https://grafana.example.com/dashboard"},
+		[]string{"grafana.example.com"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.URL != "https://grafana.example.com/dashboard" {
+		t.Errorf("URL = %q", got.URL)
+	}
+	if got.Sandbox != DefaultIframeSandbox {
+		t.Errorf("Sandbox default = %q, want %q", got.Sandbox, DefaultIframeSandbox)
+	}
+}
+
+func TestParseIframe_CustomSandbox(t *testing.T) {
+	got, err := ParseIframe(
+		map[string]any{
+			"url":     "https://ha.example.com",
+			"sandbox": "allow-same-origin allow-scripts allow-forms",
+			"height":  "720px",
+		},
+		[]string{"ha.example.com"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Sandbox != "allow-same-origin allow-scripts allow-forms" {
+		t.Errorf("Sandbox = %q", got.Sandbox)
+	}
+	if got.Height != "720px" {
+		t.Errorf("Height = %q", got.Height)
+	}
+}
+
+func TestParseIframe_RejectsNonAllowlistedHost(t *testing.T) {
+	_, err := ParseIframe(
+		map[string]any{"url": "https://evil.example.com"},
+		[]string{"grafana.example.com"},
+	)
+	if err == nil || !strings.Contains(err.Error(), "iframe_allowed_hosts") {
+		t.Errorf("expected allowlist rejection, got: %v", err)
+	}
+}
+
+func TestParseIframe_RejectsEmptyAllowlist(t *testing.T) {
+	_, err := ParseIframe(
+		map[string]any{"url": "https://example.com"},
+		nil,
+	)
+	if err == nil {
+		t.Error("expected rejection with empty allowlist")
+	}
+}
+
+func TestParseIframe_RequiresURL(t *testing.T) {
+	_, err := ParseIframe(map[string]any{}, []string{"example.com"})
+	if err == nil {
+		t.Error("expected url-required error")
+	}
+}
+
+func TestParseIframe_RejectsBadScheme(t *testing.T) {
+	_, err := ParseIframe(
+		map[string]any{"url": "javascript:alert(1)"},
+		[]string{"alert"},
+	)
+	if err == nil {
+		t.Error("expected non-http(s) scheme rejection")
+	}
+}
+
+func TestParseIframe_HostCompareIsCaseInsensitive(t *testing.T) {
+	_, err := ParseIframe(
+		map[string]any{"url": "https://Grafana.Example.COM/x"},
+		[]string{"grafana.example.com"},
+	)
+	if err != nil {
+		t.Errorf("expected case-insensitive host match, got: %v", err)
+	}
+}
+
 func TestWidgetID_Stable(t *testing.T) {
 	// Must match the ID format emitted by configPagesHandler. If either
 	// drifts, the proxy handler stops finding widgets.

@@ -20,7 +20,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o helm ./cmd/helm
 # ── Stage 3: Minimal runtime image ───────────────────────────────────────────
 FROM alpine:3.21
 RUN apk --no-cache add ca-certificates tzdata wget \
-    && adduser -D -u 1000 -s /sbin/nologin helm
+    && adduser -D -u 1000 -s /sbin/nologin helm \
+    && mkdir -p /data \
+    && chown helm:helm /data
 WORKDIR /app
 COPY --from=backend /app/helm ./
 RUN chown helm:helm /app/helm

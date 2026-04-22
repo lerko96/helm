@@ -44,7 +44,7 @@ volumes:
 docker compose up -d
 ```
 
-Serves on `:8080`. Pin a release by replacing `latest` with a tag e.g. `2026.04.1`.
+Serves on `:8080`. Pin a release by replacing `latest` with a tag e.g. `2026.04.1`. Image supports `linux/amd64` and `linux/arm64`.
 
 ---
 

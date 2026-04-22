@@ -118,6 +118,9 @@ func NewRouter(cfg *config.Config, db *sql.DB, uiFS fs.FS, b *broker.Broker) htt
 		r.Put("/api/memos/{id}", handlers.UpdateMemo(db, b))
 		r.Delete("/api/memos/{id}", handlers.DeleteMemo(db, b))
 
+		// Docker status (gated on docker.enabled)
+		r.Get("/api/docker/containers", handlers.ListContainers(cfg))
+
 		// Attachments
 		r.Post("/api/attachments", handlers.UploadAttachment(db, cfg))
 		r.Get("/api/attachments", handlers.ListAttachments(db))

@@ -35,8 +35,17 @@ type Config struct {
 	Server             ServerConfig  `yaml:"server"`
 	Auth               AuthConfig    `yaml:"auth"`
 	Storage            StorageConfig `yaml:"storage"`
+	Docker             DockerConfig  `yaml:"docker"`
 	IframeAllowedHosts []string      `yaml:"iframe_allowed_hosts"`
 	Pages              []Page        `yaml:"pages"`
+}
+
+// DockerConfig gates the docker-status widget. Disabled by default — mounting
+// /var/run/docker.sock is a real security surface (container on that socket
+// can escape), so opt-in.
+type DockerConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Socket  string `yaml:"socket"`
 }
 
 type ServerConfig struct {
@@ -215,6 +224,10 @@ func Load(path string) (*Config, error) {
 		Storage: StorageConfig{
 			DBPath:          "./data/helm.db",
 			AttachmentsPath: "./data/attachments",
+		},
+		Docker: DockerConfig{
+			Enabled: false,
+			Socket:  "/var/run/docker.sock",
 		},
 	}
 

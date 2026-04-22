@@ -18,6 +18,7 @@ import CalendarSourcesWidget from './components/widgets/CalendarSourcesWidget'
 import TagsWidget from './components/widgets/TagsWidget'
 import CustomApiWidget from './components/widgets/CustomApiWidget'
 import IframeWidget from './components/widgets/IframeWidget'
+import DockerStatusWidget from './components/widgets/DockerStatusWidget'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ const WIDGET_COMPONENTS = {
   tags: TagsWidget,
   'custom-api': CustomApiWidget,
   iframe: IframeWidget,
+  'docker-status': DockerStatusWidget,
 }
 
 export default function App() {

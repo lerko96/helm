@@ -63,6 +63,10 @@ func ListMemos(db *sql.DB) http.HandlerFunc {
 			memos = append(memos, m)
 			ids = append(ids, m.ID)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		tagMap := batchGetEntityTags(db, "memo", ids)
 		for i := range memos {
 			if tags, ok := tagMap[memos[i].ID]; ok {

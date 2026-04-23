@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Shell, { type Page } from './components/layout/Shell'
 import LoginPage from './components/LoginPage'
 import { isAuthenticated, clearToken } from './lib/auth'
-import { apiFetch } from './lib/api'
+import { apiFetch, authEvents } from './lib/api'
 import { startSSE, type ReminderEvent, type MutationEvent } from './lib/sse'
 import MemosWidget from './components/widgets/MemosWidget'
 import TodosWidget from './components/widgets/TodosWidget'
@@ -98,6 +98,16 @@ export default function App() {
       queryClient.invalidateQueries({ queryKey: [key] })
     }
   }, [])
+
+  useEffect(() => {
+    const handler = () => {
+      setAuthed(false)
+      setPages(null)
+      showBanner('SESSION EXPIRED — PLEASE LOG IN')
+    }
+    authEvents.addEventListener('unauth', handler)
+    return () => authEvents.removeEventListener('unauth', handler)
+  }, [showBanner])
 
   useEffect(() => {
     if (!authed) return

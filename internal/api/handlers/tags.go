@@ -65,6 +65,10 @@ func ListTags(db *sql.DB) http.HandlerFunc {
 			}
 			tags = append(tags, t)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, tags)
 	}
 }

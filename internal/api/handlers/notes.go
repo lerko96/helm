@@ -52,6 +52,10 @@ func ListNoteFolders(db *sql.DB) http.HandlerFunc {
 			}
 			folders = append(folders, f)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, folders)
 	}
 }
@@ -139,6 +143,10 @@ func ListNotes(db *sql.DB) http.HandlerFunc {
 			}
 			notes = append(notes, n)
 			ids = append(ids, n.ID)
+		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
 		}
 		tagMap := batchGetEntityTags(db, "note", ids)
 		for i := range notes {

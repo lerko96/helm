@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -34,6 +35,8 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
+	log.Printf("timezone: %s (set TZ env var to override)", time.Local.String())
+
 	database, err := db.Open(cfg.Storage.DBPath)
 	if err != nil {
 		log.Fatalf("database: %v", err)
@@ -48,14 +51,17 @@ func main() {
 		log.Fatalf("attachments dir: %v", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	b := broker.New()
-	stopReminders := reminder.StartScheduler(database, b)
+	stopReminders := reminder.StartScheduler(ctx, database, b)
 	defer stopReminders()
 
-	stopRecurrence := recurrence.StartScheduler(database)
+	stopRecurrence := recurrence.StartScheduler(ctx, database)
 	defer stopRecurrence()
 
-	stopCalDAV := startCalDAVScheduler(database, cfg.Auth.Secret)
+	stopCalDAV := startCalDAVScheduler(ctx, database, cfg.Auth.Secret)
 	defer stopCalDAV()
 
 	var uiFS fs.FS
@@ -69,9 +75,6 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{Addr: addr, Handler: router}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		log.Printf("helm listening on http://%s", addr)
@@ -91,13 +94,14 @@ func main() {
 }
 
 // startCalDAVScheduler syncs all non-local calendar sources every 15 minutes.
-// Returns a cancel function.
-func startCalDAVScheduler(database *sql.DB, secret string) func() {
-	ticker := time.NewTicker(15 * time.Minute)
-	done := make(chan struct{})
+// The scheduler stops when parent ctx is cancelled or when the returned stop function is
+// invoked. Stop blocks until the ticker goroutine and any in-flight sync goroutines return.
+func startCalDAVScheduler(parent context.Context, database *sql.DB, secret string) func() {
+	ctx, cancel := context.WithCancel(parent)
+	var wg sync.WaitGroup
 
 	syncAll := func() {
-		rows, err := database.Query(
+		rows, err := database.QueryContext(ctx,
 			`SELECT id, name, url, username, password_enc FROM calendar_sources WHERE is_local = 0`,
 		)
 		if err != nil {
@@ -116,25 +120,36 @@ func startCalDAVScheduler(database *sql.DB, secret string) func() {
 			src.Username = username.String
 			src.PasswordEnc = passwordEnc.String
 
+			wg.Add(1)
 			go func(s caldav.CalendarSource) {
+				defer wg.Done()
 				if err := caldav.SyncSource(database, s, secret); err != nil {
 					log.Printf("caldav scheduler: source %d: %v", s.ID, err)
 				}
 			}(src)
 		}
+		if err := rows.Err(); err != nil {
+			log.Printf("caldav scheduler: iterate sources: %v", err)
+		}
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				syncAll()
-			case <-done:
-				ticker.Stop()
+			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	return func() { close(done) }
+	return func() {
+		cancel()
+		wg.Wait()
+	}
 }

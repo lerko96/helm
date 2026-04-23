@@ -18,11 +18,14 @@ type payload struct {
 }
 
 // StartScheduler polls for due reminders every 30s and publishes them to the broker.
-// Returns a cancel function that stops the scheduler.
-func StartScheduler(db *sql.DB, b *broker.Broker) func() {
-	ctx, cancel := context.WithCancel(context.Background())
+// The scheduler stops when parent is cancelled or when the returned stop function is invoked.
+// The stop function blocks until the goroutine returns.
+func StartScheduler(parent context.Context, db *sql.DB, b *broker.Broker) func() {
+	ctx, cancel := context.WithCancel(parent)
+	done := make(chan struct{})
 
 	go func() {
+		defer close(done)
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
@@ -31,17 +34,18 @@ func StartScheduler(db *sql.DB, b *broker.Broker) func() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				fire(db, b)
+				fire(ctx, db, b)
 			}
 		}
 	}()
 
-	return cancel
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
-func fire(db *sql.DB, b *broker.Broker) {
-	ctx := context.Background()
-
+func fire(ctx context.Context, db *sql.DB, b *broker.Broker) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Printf("reminder scheduler: begin tx: %v", err)

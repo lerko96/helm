@@ -65,6 +65,10 @@ func ListCalendarSources(db *sql.DB) http.HandlerFunc {
 			}
 			sources = append(sources, s)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, sources)
 	}
 }
@@ -220,6 +224,10 @@ func ListCalendarEvents(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			events = append(events, e)
+		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
 		}
 		respond(w, http.StatusOK, events)
 	}

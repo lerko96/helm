@@ -54,6 +54,10 @@ func ListBookmarkCollections(db *sql.DB) http.HandlerFunc {
 			}
 			collections = append(collections, c)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, collections)
 	}
 }
@@ -141,6 +145,10 @@ func ListBookmarks(db *sql.DB) http.HandlerFunc {
 			}
 			bookmarks = append(bookmarks, bm)
 			ids = append(ids, bm.ID)
+		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
 		}
 		tagMap := batchGetEntityTags(db, "bookmark", ids)
 		for i := range bookmarks {

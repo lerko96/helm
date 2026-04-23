@@ -40,6 +40,10 @@ func ListReminders(db *sql.DB) http.HandlerFunc {
 			}
 			reminders = append(reminders, rem)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, reminders)
 	}
 }

@@ -60,6 +60,10 @@ func ListClipboardItems(db *sql.DB) http.HandlerFunc {
 			items = append(items, item)
 			ids = append(ids, item.ID)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		tagMap := batchGetEntityTags(db, "clipboard", ids)
 		for i := range items {
 			if tags, ok := tagMap[items[i].ID]; ok {

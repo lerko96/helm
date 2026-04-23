@@ -1,5 +1,7 @@
 import { clearToken, getToken } from './auth'
 
+export const authEvents = new EventTarget()
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const res = await fetch(path, {
@@ -13,7 +15,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   if (res.status === 401) {
     clearToken()
-    window.location.reload()
+    authEvents.dispatchEvent(new Event('unauth'))
     throw new Error('unauthenticated')
   }
 

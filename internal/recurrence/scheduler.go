@@ -8,10 +8,13 @@ import (
 )
 
 // StartScheduler polls for due recurrences every hour and spawns new todo copies.
-// Returns a cancel function that stops the scheduler.
-func StartScheduler(db *sql.DB) func() {
-	ctx, cancel := context.WithCancel(context.Background())
+// The scheduler stops when parent is cancelled or when the returned stop function is invoked.
+// The stop function blocks until the goroutine returns.
+func StartScheduler(parent context.Context, db *sql.DB) func() {
+	ctx, cancel := context.WithCancel(parent)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for {
@@ -19,15 +22,18 @@ func StartScheduler(db *sql.DB) func() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				spawnDue(db)
+				spawnDue(ctx, db)
 			}
 		}
 	}()
-	return cancel
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
-func spawnDue(db *sql.DB) {
-	rows, err := db.QueryContext(context.Background(), `
+func spawnDue(ctx context.Context, db *sql.DB) {
+	rows, err := db.QueryContext(ctx, `
 		SELECT tr.id, tr.todo_id, tr.rrule, tr.next_occurrence
 		FROM todo_recurrences tr
 		WHERE tr.next_occurrence <= CURRENT_TIMESTAMP
@@ -55,19 +61,17 @@ func spawnDue(db *sql.DB) {
 	rows.Close()
 
 	for _, r := range due {
-		if err := spawnTodo(db, r.id, r.todoID, r.rrule, r.nextOccurrence); err != nil {
+		if err := spawnTodo(ctx, db, r.id, r.todoID, r.rrule, r.nextOccurrence); err != nil {
 			log.Printf("recurrence scheduler: spawn todo %d: %v", r.todoID, err)
 		}
 	}
 }
 
-func spawnTodo(db *sql.DB, recurrenceID, parentID int64, rrule string, nextOcc time.Time) error {
+func spawnTodo(ctx context.Context, db *sql.DB, recurrenceID, parentID int64, rrule string, nextOcc time.Time) error {
 	freq, interval, err := ParseRRule(rrule)
 	if err != nil {
 		return err
 	}
-
-	ctx := context.Background()
 
 	var (
 		listID      sql.NullInt64

@@ -2,13 +2,25 @@ package caldav
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/lerko/helm/internal/crypto"
 	"github.com/lerko/helm/internal/httpclient"
 )
+
+// ErrSyncInProgress is returned when a concurrent sync is already running for the same source.
+var ErrSyncInProgress = errors.New("sync already in progress for source")
+
+var syncLocks sync.Map // map[int64]*sync.Mutex
+
+func lockFor(id int64) *sync.Mutex {
+	v, _ := syncLocks.LoadOrStore(id, &sync.Mutex{})
+	return v.(*sync.Mutex)
+}
 
 // validateCalDAVURL defers to the shared SSRF policy: https-only + no
 // private/loopback destinations.
@@ -27,7 +39,14 @@ type CalendarSource struct {
 
 // SyncSource fetches events from a remote CalDAV source and upserts them into the DB.
 // It skips events whose etag is unchanged, and deletes DB events not present in the remote response.
+// Returns ErrSyncInProgress if a concurrent sync for the same source is already running.
 func SyncSource(db *sql.DB, source CalendarSource, secret string) error {
+	mu := lockFor(source.ID)
+	if !mu.TryLock() {
+		return ErrSyncInProgress
+	}
+	defer mu.Unlock()
+
 	if err := validateCalDAVURL(source.URL); err != nil {
 		return fmt.Errorf("source %d URL rejected: %w", source.ID, err)
 	}
@@ -153,6 +172,9 @@ func deleteStaleEvents(db *sql.DB, sourceID int64, keepUIDs map[string]struct{})
 		if _, ok := keepUIDs[uid]; !ok {
 			toDelete = append(toDelete, uid)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
 	}
 	rows.Close()
 

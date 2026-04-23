@@ -77,6 +77,10 @@ func ListTodoLists(db *sql.DB) http.HandlerFunc {
 			}
 			lists = append(lists, l)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, lists)
 	}
 }
@@ -179,6 +183,10 @@ func ListTodos(db *sql.DB) http.HandlerFunc {
 			}
 			todos = append(todos, t)
 			ids = append(ids, t.ID)
+		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
 		}
 		tagMap := batchGetEntityTags(db, "todo", ids)
 		subtaskMap := batchGetSubtasks(db, ids)

@@ -164,6 +164,10 @@ func ListAttachments(db *sql.DB) http.HandlerFunc {
 			}
 			attachments = append(attachments, a)
 		}
+		if err := rows.Err(); err != nil {
+			respondError(w, http.StatusInternalServerError, "row iteration failed")
+			return
+		}
 		respond(w, http.StatusOK, attachments)
 	}
 }

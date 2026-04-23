@@ -211,6 +211,7 @@ Build the binary, place it and the config, then install the service:
 
 ```bash
 go build -o /usr/local/bin/helm ./cmd/helm
+install -d /etc/helm
 cp config.yml /etc/helm/config.yml
 ```
 
@@ -225,12 +226,15 @@ ExecStart=/usr/local/bin/helm /etc/helm/config.yml
 WorkingDirectory=/var/lib/helm
 User=helm
 Group=helm
+Environment=TZ=UTC
 Restart=on-failure
 RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+> `TZ` controls the timezone Helm uses for reminder/recurrence scheduling. Change `UTC` to your local tz (e.g. `America/New_York`) so scheduled events fire at the expected wall-clock time. `tzdata` must be installed on the host.
 
 ```bash
 useradd -r -s /sbin/nologin helm
